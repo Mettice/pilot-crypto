@@ -60,7 +60,7 @@ export default function LiveTicker() {
     }
 
     fetchPrices()
-    const priceInterval = setInterval(fetchPrices, 60000) // Update every minute
+    const priceInterval = setInterval(fetchPrices, 120000) // Update every 2 minutes
 
     return () => {
       clearInterval(interval)

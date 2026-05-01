@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Zap, MessageCircle, Instagram, Send, ExternalLink } from 'lucide-react'
+import { MessageCircle, Instagram, Send, ExternalLink } from 'lucide-react'
 
 const quickLinks = [
   { label: 'Home', href: '#hero' },
@@ -14,7 +14,7 @@ const quickLinks = [
 ]
 
 const social = [
-  { icon: MessageCircle, label: 'WhatsApp', href: 'https://wa.me/message/YOUR_WHATSAPP', color: '#25d366' },
+  { icon: MessageCircle, label: 'WhatsApp', href: 'https://wa.me/33662361149', color: '#25d366' },
   { icon: Instagram, label: 'Instagram', href: '#', color: '#e1306c' },
   { icon: Send, label: 'Telegram', href: '#', color: '#0088cc' },
 ]
@@ -32,8 +32,9 @@ export default function Footer() {
           {/* Brand */}
           <div className="md:col-span-2 flex flex-col gap-5">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-blue-gradient flex items-center justify-center shadow-glow-blue">
-                <Zap className="w-4 h-4 text-white" fill="white" />
+              <div className="w-8 h-8 rounded-lg bg-blue-gradient overflow-hidden flex items-center justify-center shadow-glow-blue">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="Pilot Crypto Logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-heading font-bold text-xl text-white">
                 Pilot<span className="text-[#00AEEF]">Crypto</span>
@@ -85,7 +86,7 @@ export default function Footer() {
             </h4>
             <div className="flex flex-col gap-3">
               <a
-                href="https://wa.me/message/YOUR_WHATSAPP"
+                href="https://wa.me/33662361149"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2.5 text-sm text-muted hover:text-white transition-colors group"

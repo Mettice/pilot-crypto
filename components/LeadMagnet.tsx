@@ -56,8 +56,11 @@ export default function LeadMagnet() {
             {/* Left */}
             <div className="p-8 md:p-12 flex flex-col gap-6">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00AEEF]/10 border border-[#00AEEF]/20 w-fit">
-                <Download className="w-3.5 h-3.5 text-[#00AEEF]" />
-                <span className="text-xs font-semibold text-[#00AEEF] uppercase tracking-wide">Free Download</span>
+                <div className="w-4 h-4 rounded-sm overflow-hidden bg-blue-gradient">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                </div>
+                <span className="text-xs font-semibold text-[#00AEEF] uppercase tracking-wide">Starter Guide</span>
               </div>
 
               <div>

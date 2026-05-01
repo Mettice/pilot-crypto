@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, Zap } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 const navLinks = [
   { label: 'Home', href: '#hero' },
@@ -49,8 +49,9 @@ export default function Header() {
               onClick={(e) => { e.preventDefault(); handleNavClick('#hero') }}
               className="flex items-center gap-2.5 group"
             >
-              <div className="w-8 h-8 rounded-lg bg-blue-gradient flex items-center justify-center shadow-glow-blue group-hover:shadow-glow-blue-lg transition-all duration-300">
-                <Zap className="w-4 h-4 text-white" fill="white" />
+              <div className="w-8 h-8 rounded-lg bg-blue-gradient overflow-hidden flex items-center justify-center shadow-glow-blue group-hover:shadow-glow-blue-lg transition-all duration-300">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="Pilot Crypto Logo" className="w-full h-full object-cover" />
               </div>
               <span className="font-heading font-bold text-xl text-white">
                 Pilot<span className="text-[#00AEEF]">Crypto</span>

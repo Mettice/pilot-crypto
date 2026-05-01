@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+// Simple in-memory cache for fallback when rate-limited
+let lastKnownPrices: any = null
+
 export async function GET() {
   try {
     const ids = 'bitcoin,ethereum,crypto-com-chain,solana,binancecoin,cardano,polkadot,matic-network'
@@ -10,21 +13,34 @@ export async function GET() {
       {
         headers: {
           'Accept': 'application/json',
-          // Note: Add your API key here if you have one
-          // 'x-cg-demo-api-key': process.env.COINGECKO_API_KEY || ''
         },
-        next: { revalidate: 60 } // Cache for 60 seconds
+        next: { revalidate: 300 } // Cache for 5 minutes
       }
     )
+
+    if (res.status === 429) {
+      console.warn('CoinGecko Rate Limit hit (429). Returning last known prices.')
+      if (lastKnownPrices) {
+        return NextResponse.json(lastKnownPrices)
+      }
+      return NextResponse.json({ error: 'Rate limit hit', fallback: true }, { status: 429 })
+    }
 
     if (!res.ok) {
       throw new Error(`CoinGecko API responded with ${res.status}`)
     }
 
     const data = await res.json()
+    lastKnownPrices = data
     return NextResponse.json(data)
   } catch (error: any) {
     console.error('Price fetch error:', error)
+    
+    // Return stale data if available instead of a 500 error
+    if (lastKnownPrices) {
+      return NextResponse.json(lastKnownPrices)
+    }
+    
     return NextResponse.json({ error: 'Failed to fetch prices' }, { status: 500 })
   }
 }

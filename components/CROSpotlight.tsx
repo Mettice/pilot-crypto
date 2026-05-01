@@ -74,7 +74,10 @@ export default function CROSpotlight() {
           >
             {/* Label */}
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-[#00AEEF]/20 w-fit">
-              <Zap className="w-3.5 h-3.5 text-[#00AEEF]" fill="#00AEEF" />
+              <div className="w-4 h-4 rounded-sm overflow-hidden bg-blue-gradient">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              </div>
               <span className="text-xs font-semibold text-[#00AEEF] tracking-wide uppercase">
                 CRO Spotlight
               </span>

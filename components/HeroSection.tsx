@@ -247,7 +247,7 @@ export default function HeroSection() {
 
     // Stagger fetch to avoid colliding with LiveTicker rate limits
     const timer = setTimeout(fetchPrices, 1500);
-    const interval = setInterval(fetchPrices, 60000);
+    const interval = setInterval(fetchPrices, 180000); // Fetch every 3 minutes
 
     return () => {
       clearTimeout(timer);
