@@ -1,3 +1,4 @@
+// v1.0.2 - Force redeploy for branding update
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
 import LiveTicker from '@/components/LiveTicker'
