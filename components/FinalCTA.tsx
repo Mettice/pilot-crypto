@@ -119,7 +119,7 @@ export default function FinalCTA() {
           className="flex flex-col sm:flex-row gap-4 w-full max-w-sm sm:max-w-none justify-center"
         >
           <motion.a
-            href="https://wa.me/message/YOUR_WHATSAPP"
+            href="https://wa.me/33662361149"
             target="_blank"
             rel="noopener noreferrer"
             whileHover={{ scale: 1.05 }}

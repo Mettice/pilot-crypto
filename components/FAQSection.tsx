@@ -123,7 +123,7 @@ export default function FAQSection() {
         >
           <p className="text-muted text-sm mb-4">Still have questions?</p>
           <a
-            href="https://wa.me/message/YOUR_WHATSAPP"
+            href="https://wa.me/33662361149"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[#00AEEF]/30 text-[#00AEEF] text-sm font-semibold hover:bg-[#00AEEF]/10 transition-all"

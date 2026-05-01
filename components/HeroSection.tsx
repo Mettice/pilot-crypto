@@ -288,7 +288,7 @@ export default function HeroSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="font-heading font-bold text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[4rem] leading-[1.1] text-white"
+              className="font-heading font-bold text-[2.5rem] sm:text-5xl lg:text-[3.5rem] xl:text-[4rem] leading-[1.1] text-white"
             >
               Build Wealth With{' '}
               <span className="gradient-text">Crypto,</span>
@@ -366,7 +366,7 @@ export default function HeroSection() {
             <div className="absolute inset-0 rounded-3xl bg-[#00AEEF] opacity-[0.03] blur-3xl pointer-events-none" />
 
             {/* Price cards row */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 scroll-smooth">
               <CryptoCard
                 symbol="BTC" name="Bitcoin"
                 price={prices.btc.price} change={prices.btc.change} image={prices.btc.image}

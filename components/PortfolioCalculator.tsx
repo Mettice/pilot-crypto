@@ -221,7 +221,7 @@ export default function PortfolioCalculator() {
               </div>
 
               {/* Results */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-3 gap-3">
                 {[
                   { label: 'Invested', value: totalInvested },
                   { label: 'Projected', value: projectedValue },
@@ -251,7 +251,7 @@ export default function PortfolioCalculator() {
               </div>
 
               <motion.a
-                href="https://wa.me/message/YOUR_WHATSAPP"
+                href="https://wa.me/33662361149"
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.03 }}

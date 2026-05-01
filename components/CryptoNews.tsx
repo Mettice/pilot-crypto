@@ -10,6 +10,10 @@ interface NewsItem {
   pubDate: string
   thumbnail: string
   description: string
+  enclosure?: {
+    link?: string
+    type?: string
+  }
 }
 
 export default function CryptoNews() {
@@ -73,11 +77,15 @@ export default function CryptoNews() {
                 transition={{ duration: 0.5, delay: i * 0.15 }}
                 className="group flex flex-col glass rounded-2xl overflow-hidden border border-white/5 hover:border-[#a855f7]/30 transition-all hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(168,85,247,0.15)]"
               >
-                {item.thumbnail ? (
+                {item.thumbnail || item.enclosure?.link ? (
                   <div className="h-48 overflow-hidden relative bg-[#0b1220]">
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0d1626] to-transparent z-10 opacity-60" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                      src={item.thumbnail || item.enclosure?.link} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
                   </div>
                 ) : (
                   <div className="h-48 bg-[#0b1220] flex items-center justify-center border-b border-white/5">
