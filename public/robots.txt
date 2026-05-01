@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pilotcrypto.com/sitemap.xml
