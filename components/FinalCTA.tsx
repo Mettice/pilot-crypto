@@ -127,7 +127,7 @@ export default function FinalCTA() {
             className="flex items-center justify-center gap-2.5 px-8 py-4 rounded-full bg-blue-gradient font-bold text-white text-base shadow-glow-blue hover:shadow-glow-blue-lg animate-pulse-glow transition-all"
           >
             <MessageCircle className="w-5 h-5" />
-            WhatsApp Now — It&apos;s Free
+            WhatsApp Now — Get Started
           </motion.a>
 
           <motion.a

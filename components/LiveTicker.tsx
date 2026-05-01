@@ -31,8 +31,7 @@ export default function LiveTicker() {
     // Fetch real data from CoinGecko markets API to get images too
     const fetchPrices = async () => {
       try {
-        const ids = initialCoins.map(c => c.id).join(',')
-        const res = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}`)
+        const res = await fetch('/api/prices')
         const data: any = await res.json()
 
         if (!Array.isArray(data)) return; // Handle rate limiting smoothly

@@ -216,7 +216,7 @@ export default function HeroSection() {
 
   useEffect(() => {
     const fetchPrices = () => {
-      fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum,crypto-com-chain')
+      fetch('/api/prices')
         .then(res => res.json())
         .then((data: any) => {
           if (!Array.isArray(data)) return; // Handle rate limit response
@@ -322,7 +322,7 @@ export default function HeroSection() {
                 className="flex items-center justify-center gap-2.5 px-7 py-4 rounded-full font-semibold text-white bg-gradient-to-r from-[#00AEEF] to-[#0090d4] shadow-glow-blue hover:shadow-glow-blue-lg animate-pulse-glow transition-all text-base"
               >
                 <MessageCircle className="w-5 h-5" />
-                Start Free on WhatsApp
+                Start on WhatsApp
               </motion.a>
 
               <motion.a

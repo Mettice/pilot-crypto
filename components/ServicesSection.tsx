@@ -7,7 +7,8 @@ const plans = [
   {
     id: 'starter',
     name: 'Starter',
-    price: 'Free',
+    price: '€9.99',
+    priceSub: '/month',
     sub: 'Perfect to begin',
     icon: Rocket,
     color: '#00AEEF',
@@ -95,7 +96,7 @@ export default function ServicesSection() {
             <span className="gradient-text-gold">Growth Path</span>
           </h2>
           <p className="text-muted text-lg max-w-xl mx-auto">
-            Start free, grow with community, or accelerate with elite 1-to-1 mentorship.
+            Start your journey, grow with community, or accelerate with elite 1-to-1 mentorship.
           </p>
         </motion.div>
 
@@ -181,8 +182,8 @@ export default function ServicesSection() {
                   className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-semibold text-sm transition-all ${plan.ctaStyle}`}
                 >
                   {plan.id === 'vip' && <Crown className="w-4 h-4" />}
-                  {plan.id !== 'vip' && <MessageCircle className="w-4 h-4" />}
-                  {plan.cta}
+                  {plan.id !== 'vip' && <MessageCircle className="w-5 h-5" />}
+                  {plan.id !== 'vip' ? 'Start on WhatsApp' : plan.cta}
                 </motion.a>
               </div>
             </motion.div>
