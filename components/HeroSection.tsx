@@ -278,7 +278,7 @@ export default function HeroSection() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass border border-[#00AEEF]/20 w-fit"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs font-semibold text-[#00AEEF] tracking-wide uppercase">
+              <span className="text-xs font-semibold text-[#00AEEF] tracking-wide uppercase text-center sm:text-left">
                 100+ Investors Guided Across Europe
               </span>
             </motion.div>
@@ -361,7 +361,7 @@ export default function HeroSection() {
           </div>
 
           {/* ── RIGHT — Crypto Dashboard ─────────────────── */}
-          <div className="relative flex flex-col gap-3 lg:pl-6">
+          <div className="relative flex flex-col gap-3 lg:pl-6 overflow-hidden sm:overflow-visible">
             {/* Glow ring */}
             <div className="absolute inset-0 rounded-3xl bg-[#00AEEF] opacity-[0.03] blur-3xl pointer-events-none" />
 

@@ -16,7 +16,7 @@ import FloatingWhatsApp from '@/components/FloatingWhatsApp'
 
 export default function Home() {
   return (
-    <main className="bg-bg min-h-screen">
+    <main className="bg-bg min-h-screen overflow-x-hidden">
       <Header />
       <HeroSection />
       <LiveTicker />
