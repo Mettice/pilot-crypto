@@ -2,6 +2,7 @@
 import Header from '@/components/Header'
 import HeroSection from '@/components/HeroSection'
 import LiveTicker from '@/components/LiveTicker'
+import CryptoVideoSection from '@/components/CryptoVideoSection'
 import WhyPilotCrypto from '@/components/WhyPilotCrypto'
 import CROSpotlight from '@/components/CROSpotlight'
 import CryptoNews from '@/components/CryptoNews'
@@ -21,6 +22,7 @@ export default function Home() {
       <Header />
       <HeroSection />
       <LiveTicker />
+      <CryptoVideoSection />
       <WhyPilotCrypto />
       <CROSpotlight />
       <CryptoNews />
