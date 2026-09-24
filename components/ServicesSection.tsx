@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, MessageCircle, Crown, Rocket, Star } from 'lucide-react'
+import { Check, MessageCircle, Crown, Rocket, Star, Loader2 } from 'lucide-react'
 
 const plans = [
   {
@@ -74,6 +75,27 @@ const plans = [
 ]
 
 export default function ServicesSection() {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const startCheckout = async (planId: string) => {
+    setLoadingPlan(planId)
+    setError(null)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error || 'Checkout failed')
+      window.location.href = data.url
+    } catch {
+      setError('Could not start checkout. Please try again or contact us on WhatsApp.')
+      setLoadingPlan(null)
+    }
+  }
+
   return (
     <section id="services" className="section-pad relative overflow-hidden">
       {/* Background */}
@@ -173,22 +195,38 @@ export default function ServicesSection() {
                 </ul>
 
                 {/* CTA */}
-                <motion.a
-                  href={plan.id === 'vip' ? '#contact' : 'https://wa.me/33662361149'}
-                  target={plan.id !== 'vip' ? '_blank' : undefined}
-                  rel="noopener noreferrer"
+                <motion.button
+                  type="button"
+                  onClick={() => startCheckout(plan.id)}
+                  disabled={loadingPlan !== null}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
-                  className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-semibold text-sm transition-all ${plan.ctaStyle}`}
+                  className={`flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-60 disabled:cursor-wait ${plan.ctaStyle}`}
                 >
-                  {plan.id === 'vip' && <Crown className="w-4 h-4" />}
-                  {plan.id !== 'vip' && <MessageCircle className="w-5 h-5" />}
-                  {plan.id !== 'vip' ? 'Start on WhatsApp' : plan.cta}
-                </motion.a>
+                  {loadingPlan === plan.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    plan.id === 'vip' && <Crown className="w-4 h-4" />
+                  )}
+                  {plan.cta}
+                </motion.button>
+                <a
+                  href="https://wa.me/33662361149"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 mt-3 text-xs text-muted hover:text-white transition-colors"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  Questions? Chat on WhatsApp
+                </a>
               </div>
             </motion.div>
           ))}
         </div>
+
+        {error && (
+          <p className="text-center text-red-400 text-sm mt-6">{error}</p>
+        )}
 
         {/* Urgency */}
         <motion.p
