@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { MessageCircle, Crown, TrendingUp, Shield, Users } from 'lucide-react'
 
@@ -191,6 +192,31 @@ function ParticleField() {
   return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 }
 
+// Loaded client-side only, after first paint
+const Hero3D = dynamic(() => import('./Hero3D'), { ssr: false })
+
+// 3D on desktop with WebGL and no reduced-motion preference; 2D particles otherwise
+function useCan3D() {
+  const [can3D, setCan3D] = useState(false)
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 1024px)')
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let webgl = false
+    try {
+      webgl = !!document.createElement('canvas').getContext('webgl2')
+    } catch {}
+    const update = () => setCan3D(webgl && wide.matches && !reduced.matches)
+    update()
+    wide.addEventListener('change', update)
+    reduced.addEventListener('change', update)
+    return () => {
+      wide.removeEventListener('change', update)
+      reduced.removeEventListener('change', update)
+    }
+  }, [])
+  return can3D
+}
+
 // ── Stats bar ────────────────────────────────────────────────────────────────
 function StatsBadge({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
@@ -204,6 +230,7 @@ function StatsBadge({ icon: Icon, label, value }: { icon: any; label: string; va
 
 // ── Main Hero ────────────────────────────────────────────────────────────────
 export default function HeroSection() {
+  const can3D = useCan3D()
   const btcData = [42100, 43500, 43000, 44800, 44200, 45600, 45100, 46200, 46800, 47500]
   const ethData = [2400, 2520, 2480, 2610, 2580, 2700, 2660, 2750, 2800, 2860]
   const croData = [0.085, 0.091, 0.089, 0.096, 0.094, 0.102, 0.098, 0.108, 0.106, 0.112]
@@ -260,7 +287,18 @@ export default function HeroSection() {
       id="hero"
       className="relative min-h-screen flex items-center overflow-hidden bg-bg bg-hero-mesh bg-grid-pattern"
     >
-      <ParticleField />
+      {can3D ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1.2, delay: 0.3 }}
+          className="absolute inset-0"
+        >
+          <Hero3D />
+        </motion.div>
+      ) : (
+        <ParticleField />
+      )}
 
       {/* Glow orbs */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-[#00AEEF] opacity-[0.04] blur-[120px] pointer-events-none" />
