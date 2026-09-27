@@ -24,6 +24,7 @@ module.exports = {
       fontFamily: {
         heading: ['var(--font-space-grotesk)', 'sans-serif'],
         body: ['var(--font-inter)', 'sans-serif'],
+        hud: ['var(--font-hud)', 'ui-monospace', 'monospace'],
       },
       animation: {
         ticker: 'ticker 35s linear infinite',

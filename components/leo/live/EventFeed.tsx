@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowDownRight, ArrowUpRight, FileText, Pause, Play, OctagonX, Radio } from 'lucide-react'
 import { createClient } from '@/lib/supabase/browser'
 import { useBot } from './BotProvider'
+import HudPanel from './HudPanel'
 
 type Brief = { id: string; created_at: string }
 type FeedItem = { id: string; at: string; icon: typeof Radio; color: string; title: string; detail?: string }
@@ -81,21 +82,17 @@ export default function EventFeed({ briefs }: { briefs: Brief[] }) {
   }, [data, briefs])
 
   return (
-    <section className="rounded-2xl border border-white/[0.06] bg-[#0b1220]/80 flex flex-col">
-      <header className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.06]">
-        <Radio className="w-4 h-4 text-[#00AEEF]" />
-        <h2 className="font-heading font-semibold text-white text-sm">Activity</h2>
-      </header>
-      <ul className="px-5 py-3 space-y-3 overflow-y-auto max-h-[300px]">
+    <HudPanel index="03" title="Activity log" icon={Radio}>
+      <ul className="px-4 py-3 space-y-3 overflow-y-auto max-h-[260px]">
         {items.length === 0 && <li className="text-xs text-muted">Nothing yet. Trades, controls and briefs appear here live.</li>}
         {items.map((it) => (
           <li key={it.id} className="flex gap-3">
-            <span className={`mt-0.5 w-6 h-6 rounded-lg bg-white/[0.04] flex items-center justify-center flex-shrink-0 ${it.color}`}>
+            <span className={`mt-0.5 w-6 h-6 rounded-md border border-[#00AEEF]/15 bg-[#00AEEF]/[0.04] flex items-center justify-center flex-shrink-0 ${it.color}`}>
               <it.icon className="w-3.5 h-3.5" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-white/90">{it.title}</p>
-              <p className="text-[11px] text-muted truncate">
+              <p className="font-hud text-[10px] text-[#00AEEF]/60 truncate">
                 {ago(it.at, now)}
                 {it.detail && ` · ${it.detail}`}
               </p>
@@ -103,6 +100,6 @@ export default function EventFeed({ briefs }: { briefs: Brief[] }) {
           </li>
         ))}
       </ul>
-    </section>
+    </HudPanel>
   )
 }

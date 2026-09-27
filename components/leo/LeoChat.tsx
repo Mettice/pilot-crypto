@@ -105,7 +105,10 @@ export default function LeoChat() {
   }
 
   // Command bar and other panels can ask Leo directly
-  useEffect(() => leo.register('askLeo', (text: string) => send(text)))
+  useEffect(() => {
+    leo.register('askLeo', (text: string) => send(text))
+    leo.register('toggleVoice', () => (voice.listening ? voice.stop() : voice.start()))
+  })
 
   const draft = voice.listening ? voice.interim : input
 
@@ -113,17 +116,17 @@ export default function LeoChat() {
     <div className="flex flex-col h-full min-h-0">
       <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
         {turns.length === 0 && (
-          <div className="h-full flex flex-col justify-center gap-4">
+          <div className="min-h-full flex flex-col justify-center gap-4">
             <p className="text-muted text-sm">
-              Leo reads live Binance data, searches the news, and watches your paper-trading bot. It can pause the bot when
-              you ask, but never trades. Type, press the mic to talk, or hit <kbd className="px-1 rounded bg-white/10 text-white/80 text-xs">⌘K</kbd>.
+              Leo reads live Binance data, searches the news and watches your paper-trading bot. It can pause the bot when
+              you ask, but never trades. Type, tap the core to talk, or hit <kbd className="px-1 rounded bg-white/10 text-white/80 text-xs">⌘K</kbd>.
             </p>
             <div className="grid gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="text-left text-sm text-white/80 rounded-xl border border-white/[0.08] px-3.5 py-2.5 hover:border-[#00AEEF]/40 hover:bg-[#00AEEF]/5 transition-colors"
+                  className="text-left text-sm text-[#cfeaf7] rounded-md border border-[#00AEEF]/15 bg-[#00AEEF]/[0.03] px-3.5 py-2.5 hover:border-[#00AEEF]/45 hover:bg-[#00AEEF]/[0.08] transition-colors"
                 >
                   {s}
                 </button>
@@ -135,7 +138,7 @@ export default function LeoChat() {
         {turns.map((t, i) =>
           t.role === 'user' ? (
             <div key={i} className="flex justify-end">
-              <p className="max-w-[88%] rounded-2xl rounded-br-md bg-[#00AEEF]/15 border border-[#00AEEF]/20 px-4 py-2.5 text-sm text-white whitespace-pre-wrap">
+              <p className="max-w-[88%] rounded-md rounded-br-none bg-[#00AEEF]/10 border border-[#00AEEF]/25 px-4 py-2.5 text-sm text-white whitespace-pre-wrap">
                 {t.content}
               </p>
             </div>
@@ -146,7 +149,7 @@ export default function LeoChat() {
                   {t.steps.map((s, j) => (
                     <li
                       key={j}
-                      className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] pl-1.5 pr-2.5 py-0.5 text-[11px] text-muted"
+                      className="flex items-center gap-1.5 rounded border border-[#00AEEF]/20 bg-[#00AEEF]/[0.05] pl-1.5 pr-2.5 py-0.5 font-hud text-[10px] uppercase tracking-wider text-[#9fdcf5]"
                     >
                       {s.done ? (
                         <Check className="w-3 h-3 text-emerald-400" />
@@ -180,8 +183,8 @@ export default function LeoChat() {
         className="p-3 border-t border-white/[0.06]"
       >
         <div
-          className={`flex items-end gap-2 rounded-xl border bg-[#050816] px-3 py-2 transition-colors ${
-            voice.listening ? 'border-emerald-400/50' : 'border-white/[0.08] focus-within:border-[#00AEEF]/40'
+          className={`flex items-end gap-2 rounded-md border bg-[#020816]/90 px-3 py-2 transition-all ${
+            voice.listening ? 'border-emerald-400/60 shadow-[0_0_16px_rgba(52,211,153,0.2)]' : 'border-[#00AEEF]/25 focus-within:border-[#00AEEF]/60 focus-within:shadow-[0_0_16px_rgba(0,174,239,0.15)]'
           }`}
         >
           <textarea

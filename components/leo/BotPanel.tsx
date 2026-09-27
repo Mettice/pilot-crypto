@@ -6,6 +6,7 @@ import type { BotStatus } from '@/lib/leo/bot'
 import { useBot } from './live/BotProvider'
 import { useMarket, type LiveSymbol } from './live/MarketProvider'
 import { formatPrice } from './live/TickerStrip'
+import HudPanel from './live/HudPanel'
 
 const STATE_STYLE: Record<string, string> = {
   running: 'text-emerald-400 bg-emerald-400/10',
@@ -37,27 +38,26 @@ export default function BotPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-white/[0.06] bg-[#0b1220]/80 flex flex-col">
-      <header className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <Bot className="w-4 h-4 text-[#F5B400]" />
-          <h2 className="font-heading font-semibold text-white text-sm">Trading bot</h2>
-        </div>
-        {status && (
-          <div className="flex items-center gap-1.5">
+    <HudPanel
+      index="02"
+      title="Trading bot"
+      icon={Bot}
+      right={
+        status && (
+          <div className="flex items-center gap-1.5 font-hud">
             {status.dryRun && (
-              <span className="text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 text-[#00AEEF] bg-[#00AEEF]/10">
+              <span className="text-[9px] font-semibold uppercase tracking-widest rounded px-1.5 py-0.5 text-[#5eeaff] bg-[#00AEEF]/10">
                 Paper
               </span>
             )}
-            <span className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 ${STATE_STYLE[status.state] ?? 'text-muted bg-white/5'}`}>
+            <span className={`text-[9px] font-semibold uppercase tracking-widest rounded px-1.5 py-0.5 ${STATE_STYLE[status.state] ?? 'text-muted bg-white/5'}`}>
               {status.state}
             </span>
           </div>
-        )}
-      </header>
-
-      <div className="px-5 py-4 text-sm flex-1">
+        )
+      }
+    >
+      <div className="px-4 py-4 text-sm">
         {!data ? (
           <p className="flex items-center gap-2 text-muted text-xs">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Connecting…
@@ -82,7 +82,7 @@ export default function BotPanel() {
             <button
               onClick={() => control('kill')}
               disabled={busy !== null}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+              className="flex items-center justify-center gap-1.5 rounded-md border border-red-500/40 text-red-400 hover:bg-red-500/10 px-3 py-2 text-[11px] font-semibold font-hud uppercase tracking-wider disabled:opacity-40"
             >
               {busy === 'kill' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <OctagonX className="w-3.5 h-3.5" />}
               Kill switch
@@ -91,7 +91,7 @@ export default function BotPanel() {
         )}
         {message && <p className="text-xs text-muted mt-2">{message}</p>}
       </div>
-    </section>
+    </HudPanel>
   )
 }
 
@@ -100,7 +100,7 @@ function ControlButton({ onClick, busy, icon: Icon, label }: { onClick: () => vo
     <button
       onClick={onClick}
       disabled={busy}
-      className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 text-white/85 hover:bg-white/5 px-3 py-2 text-xs font-semibold disabled:opacity-40"
+      className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-[#00AEEF]/25 text-[#9fdcf5] hover:bg-[#00AEEF]/10 font-hud uppercase tracking-wider px-3 py-2 text-xs font-semibold disabled:opacity-40"
     >
       {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Icon className="w-3.5 h-3.5" />}
       {label}
@@ -124,14 +124,14 @@ function BotDetails({ status: s }: { status: BotStatus }) {
             Total P&amp;L
             {live && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Updating with live prices" />}
           </p>
-          <p className={`font-heading text-lg font-semibold tabular-nums ${tone(totalAbs)}`}>
+          <p className={`font-hud text-lg font-semibold tabular-nums ${tone(totalAbs)}`}>
             {signed(totalAbs)} <span className="text-xs text-muted">{s.stakeCurrency}</span>
           </p>
           <p className={`text-[11px] tabular-nums ${tone(totalPct)}`}>{signed(totalPct, '%')} of paper capital</p>
         </div>
         <div>
           <p className="text-[11px] text-muted">Closed trades</p>
-          <p className="font-heading text-lg font-semibold text-white tabular-nums">
+          <p className="font-hud text-lg font-semibold text-white tabular-nums">
             {s.profit.wins}W / {s.profit.losses}L
           </p>
           <p className="text-[11px] text-muted tabular-nums">Max drawdown {s.profit.maxDrawdownPct}%</p>

@@ -26,7 +26,8 @@ export type ChartTimeframe = '1h' | '4h' | '1d'
 type Handlers = {
   askLeo: (text: string) => void
   newBrief: () => void
-  showTab: (tab: 'chat' | 'briefs') => void
+  showTab: (tab: 'chart' | 'briefs') => void
+  toggleVoice: () => void
 }
 
 type PresenceValue = {

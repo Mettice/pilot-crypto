@@ -44,7 +44,8 @@ export default function CommandPalette() {
     const status = bot.status
     const list: Command[] = [
       { id: 'brief', label: 'Write a new market brief', icon: FileText, run: () => leo.run('newBrief') },
-      { id: 'chat', label: 'Open chat', icon: MessageSquare, run: () => leo.run('showTab', 'chat') },
+      { id: 'talk', label: 'Talk to Leo (voice)', icon: MessageSquare, run: () => leo.run('toggleVoice') },
+      { id: 'chart', label: 'Show chart', icon: CandlestickChart, run: () => leo.run('showTab', 'chart') },
       { id: 'briefs', label: 'Open briefs', icon: FileText, run: () => leo.run('showTab', 'briefs') },
       ...LIVE_SYMBOLS.map((s) => ({
         id: `chart-${s}`,
@@ -93,7 +94,6 @@ export default function CommandPalette() {
           label: `Ask Leo: “${query.trim()}”`,
           icon: Search,
           run: () => {
-            leo.run('showTab', 'chat')
             leo.run('askLeo', query.trim())
           },
         },
