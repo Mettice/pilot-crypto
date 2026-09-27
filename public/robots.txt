@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://pilotcrypto.com/sitemap.xml
+Sitemap: https://pilotcrytor.io/sitemap.xml
