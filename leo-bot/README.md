@@ -29,6 +29,8 @@ cp user_data/config.private.example.json user_data/config.private.json
 # Fill in random secrets:
 sed -i "s|<random 64 chars>|$(openssl rand -hex 32)|; s|<random 32+ chars>|$(openssl rand -base64 32 | tr -d '/+=')|" user_data/config.private.json
 echo "BOT_DOMAIN=bot.pilotcrytor.io" > .env
+# The Freqtrade container runs as uid 1000, not root: give it its data folder
+mkdir -p user_data/logs && chown -R 1000:1000 user_data
 
 docker compose up -d
 docker compose logs -f freqtrade   # Ctrl+C to leave; look for "state='RUNNING'"
