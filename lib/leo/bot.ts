@@ -33,6 +33,9 @@ type FtOpenTrade = {
   profit_abs: number
   stop_loss_abs: number | null
   enter_tag: string | null
+  amount: number
+  fee_open: number | null
+  fee_close: number | null
 }
 type FtClosedTrade = { trade_id: number; pair: string; close_date: string; profit_pct: number; profit_abs: number; exit_reason: string }
 type FtProfit = {
@@ -67,6 +70,8 @@ export type BotStatus = {
     profitPct: number
     profitAbs: number
     stop: number | null
+    amount: number
+    feeRate: number // open + close fee, for live P&L estimates
   }[]
   recentTrades: { id: number; pair: string; closedAt: string; profitPct: number; profitAbs: number; exitReason: string }[]
   locks: { pair: string; until: string; reason: string }[]
@@ -109,6 +114,8 @@ export async function getBotStatus(): Promise<BotStatus> {
       profitPct: t.profit_pct,
       profitAbs: t.profit_abs,
       stop: t.stop_loss_abs,
+      amount: t.amount,
+      feeRate: (t.fee_open ?? 0.001) + (t.fee_close ?? 0.001),
     })),
     recentTrades: trades.trades
       .filter((t) => t.close_date)

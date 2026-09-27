@@ -27,7 +27,7 @@ export async function POST() {
   if (!op) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   return leoResponse(async (emit) => {
-    emit({ t: 'status', v: 'Loading market data…' })
+    emit({ t: 'status', v: 'Loading watchlist data', kind: 'data' })
     const [h4, d1] = await Promise.all([getWatchlistSnapshots('4h'), getWatchlistSnapshots('1d')])
     const snapshot = { watchlist: WATCHLIST, h4, d1 }
 

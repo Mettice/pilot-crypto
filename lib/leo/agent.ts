@@ -75,9 +75,12 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
 
 const PauseInput = z.object({ reason: z.string().min(1).max(500) })
 
+export type StepKind = 'data' | 'market' | 'search' | 'bot' | 'pause'
+
 export type LeoEvent =
   | { t: 'text'; v: string }
-  | { t: 'status'; v: string }
+  // A step Leo is taking, shown live in the activity trail and on the orb
+  | { t: 'status'; v: string; kind: StepKind }
   | { t: 'error'; v: string }
   | { t: 'saved'; v: string }
 
@@ -132,12 +135,13 @@ async function runTool(block: Anthropic.Beta.BetaToolUseBlock, ctx: LeoContext):
   }
 }
 
-function describeTool(b: Anthropic.Beta.BetaToolUseBlock) {
+function describeTool(b: Anthropic.Beta.BetaToolUseBlock): { v: string; kind: StepKind } {
   const input = b.input as { symbol?: string; interval?: string }
-  if (b.name === 'get_market_snapshot') return `${input.symbol ?? '?'} ${input.interval ?? ''}`.trim()
-  if (b.name === 'get_bot_status') return 'bot status'
-  if (b.name === 'pause_new_entries') return 'pausing the bot'
-  return b.name
+  if (b.name === 'get_market_snapshot')
+    return { v: `Reading ${(input.symbol ?? '?').replace('USDT', '')} ${input.interval ?? ''}`.trim(), kind: 'market' }
+  if (b.name === 'get_bot_status') return { v: 'Checking the bot', kind: 'bot' }
+  if (b.name === 'pause_new_entries') return { v: 'Pausing new entries', kind: 'pause' }
+  return { v: b.name, kind: 'data' }
 }
 
 // Runs Leo over a conversation, emitting text and status events as they
@@ -179,7 +183,7 @@ export async function runLeo(
     })
     stream.on('streamEvent', (event) => {
       if (event.type === 'content_block_start' && event.content_block.type === 'server_tool_use') {
-        emit({ t: 'status', v: 'Searching the web…' })
+        emit({ t: 'status', v: 'Searching the news', kind: 'search' })
       }
     })
 
@@ -206,7 +210,7 @@ export async function runLeo(
     if (toolUses.length === 0) break
     if (message.stop_reason === 'max_tokens') throw new Error('Leo ran out of output space mid tool call')
 
-    emit({ t: 'status', v: `Checking ${toolUses.map(describeTool).join(', ')}…` })
+    for (const b of toolUses) emit({ t: 'status', ...describeTool(b) })
     messages.push({ role: 'assistant', content: message.content })
     messages.push({ role: 'user', content: await Promise.all(toolUses.map((b) => runTool(b, ctx))) })
 
