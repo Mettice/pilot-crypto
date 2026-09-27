@@ -1,0 +1,18 @@
+{
+  "api_server": {
+    "enabled": true,
+    "listen_ip_address": "0.0.0.0",
+    "listen_port": 8080,
+    "verbosity": "error",
+    "enable_openapi": false,
+    "jwt_secret_key": "<random 64 chars>",
+    "CORS_origins": [],
+    "username": "leo",
+    "password": "<random 32+ chars>"
+  },
+  "telegram": {
+    "enabled": false,
+    "token": "<from @BotFather>",
+    "chat_id": "<your chat id>"
+  }
+}

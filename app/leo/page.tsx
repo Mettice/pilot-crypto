@@ -1,10 +1,11 @@
 import { redirect } from 'next/navigation'
-import { Activity, ShieldCheck } from 'lucide-react'
+import { Activity } from 'lucide-react'
 import { getOperator } from '@/lib/leo/access'
 import { getWatchlistSnapshots, type Snapshot } from '@/lib/leo/market'
 import LeoChat from '@/components/leo/LeoChat'
 import BriefPanel from '@/components/leo/BriefPanel'
 import SignOutButton from '@/components/leo/SignOutButton'
+import BotPanel from '@/components/leo/BotPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -88,15 +89,7 @@ export default async function LeoDashboard() {
 
           <BriefPanel briefs={briefs ?? []} />
 
-          <section className="rounded-2xl border border-white/[0.06] bg-[#0b1220]/80 px-5 py-4 flex gap-3">
-            <ShieldCheck className="w-5 h-5 text-muted flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-white">Trading: not connected</p>
-              <p className="text-xs text-muted mt-1">
-                Phase 1 is analysis only. Next: paper trading with Freqtrade on Binance, an approval queue and a kill switch.
-              </p>
-            </div>
-          </section>
+          <BotPanel />
         </aside>
       </div>
     </div>

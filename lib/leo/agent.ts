@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+import { botConfigured, getBotStatus, runBotAction } from './bot'
 import { getSnapshot, INTERVALS, WATCHLIST } from './market'
 
 const MODEL = 'claude-opus-5'
@@ -13,13 +15,15 @@ const getClient = () => (client ??= new Anthropic())
 // (dates, prices) goes into messages, never here.
 const SYSTEM = `You are Leo, the private market analyst for the two operators of Pilot Crypto, a crypto mentorship business. Only these operators can talk to you.
 
-What you do in this phase:
+What you do:
 - Analyse crypto markets using the get_market_snapshot tool (live Binance data with computed indicators) and web search for news, macro events and on-chain headlines.
 - Explain what the data shows: trend regime, momentum, volatility, key levels, and what would change the picture.
 - Help the operators think through trade ideas, strategy rules and risk.
+- Report on the operators' trading bot with get_bot_status: a Freqtrade bot running in paper-trading (dry-run) mode with fake money on Binance spot, strategy LeoDailyRegime (hold BTC/ETH while the daily close is above EMA200 and EMA50 is above EMA200; exit when the daily close falls below EMA200). Explain its positions, P&L and why it is in or out of the market.
 
 Hard limits:
-- You cannot place, modify or cancel orders. Trading is not connected. If asked to trade, say so plainly.
+- You cannot open, close or size trades, and you cannot resume or stop the bot. Those are operator-only dashboard controls. If asked, say so plainly.
+- Your only bot action is pause_new_entries, a risk-reducing pause: the bot keeps managing open positions and their stops but takes no new entries. Use it only when an operator explicitly asks you to, or proposes it and confirms. Always state the reason. Resuming is the operators' decision, made on the dashboard.
 - Never state a price, level or indicator value you did not get from a tool result or a cited source in this conversation. If you lack data, fetch it or say you don't have it.
 - Separate facts (tool data, cited news) from your interpretation, and give the conditions that would invalidate a view.
 - Express uncertainty honestly. No guaranteed outcomes, no hype.
@@ -48,8 +52,28 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
     },
     eager_input_streaming: true,
   },
+  {
+    name: 'get_bot_status',
+    description:
+      "The trading bot's live state: running/paused/stopped, paper or live mode, strategy, equity, P&L, win/loss count, open positions (entry, current price, stop, P&L), the 10 most recent closed trades with exit reasons, and pair locks from its risk protections.",
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'pause_new_entries',
+    description:
+      'Pause the bot so it opens no new trades. Open positions stay managed, with their stops active. Operators resume from the dashboard. Only call when an operator has explicitly asked for or confirmed a pause.',
+    input_schema: {
+      type: 'object',
+      properties: { reason: { type: 'string', description: 'Why the bot is being paused, for the audit log' } },
+      required: ['reason'],
+      additionalProperties: false,
+    },
+    eager_input_streaming: true,
+  },
   { type: 'web_search_20260209', name: 'web_search', max_uses: 4 },
 ]
+
+const PauseInput = z.object({ reason: z.string().min(1).max(500) })
 
 export type LeoEvent =
   | { t: 'text'; v: string }
@@ -59,28 +83,61 @@ export type LeoEvent =
 
 export type ChatTurn = { role: 'user' | 'assistant'; content: string }
 
-async function runTool(block: Anthropic.Beta.BetaToolUseBlock): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
-  // Eager input streaming means the server no longer validates tool input
-  const parsed = SnapshotInput.safeParse(block.input)
-  if (block.name !== 'get_market_snapshot' || !parsed.success) {
-    return {
-      type: 'tool_result',
-      tool_use_id: block.id,
-      is_error: true,
-      content: `Invalid input: ${JSON.stringify(block.input)}`,
-    }
-  }
+// The signed-in operator's Supabase client, used to write the audit log
+export type LeoContext = { supabase: SupabaseClient }
+
+const result = (id: string, content: string, isError = false): Anthropic.Beta.BetaToolResultBlockParam => ({
+  type: 'tool_result',
+  tool_use_id: id,
+  content,
+  ...(isError && { is_error: true }),
+})
+
+async function runTool(block: Anthropic.Beta.BetaToolUseBlock, ctx: LeoContext): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
+  // Eager input streaming means the server no longer validates tool input,
+  // so every input is checked against its schema here.
   try {
-    const snap = await getSnapshot(parsed.data.symbol, parsed.data.interval)
-    return { type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(snap) }
-  } catch (err) {
-    return {
-      type: 'tool_result',
-      tool_use_id: block.id,
-      is_error: true,
-      content: err instanceof Error ? err.message : 'Market data unavailable',
+    switch (block.name) {
+      case 'get_market_snapshot': {
+        const input = SnapshotInput.safeParse(block.input)
+        if (!input.success) return result(block.id, `Invalid input: ${JSON.stringify(block.input)}`, true)
+        return result(block.id, JSON.stringify(await getSnapshot(input.data.symbol, input.data.interval)))
+      }
+      case 'get_bot_status': {
+        if (!botConfigured()) return result(block.id, 'The trading bot is not connected yet.', true)
+        return result(block.id, JSON.stringify(await getBotStatus()))
+      }
+      case 'pause_new_entries': {
+        const input = PauseInput.safeParse(block.input)
+        if (!input.success) return result(block.id, 'A reason is required.', true)
+        if (!botConfigured()) return result(block.id, 'The trading bot is not connected yet.', true)
+        let ok = true
+        let outcome: string
+        try {
+          outcome = await runBotAction('pause')
+        } catch (err) {
+          ok = false
+          outcome = err instanceof Error ? err.message : 'Bot unreachable'
+        }
+        await ctx.supabase
+          .from('leo_bot_actions')
+          .insert({ source: 'leo', action: 'pause', reason: input.data.reason, ok, result: outcome })
+        return result(block.id, outcome, !ok)
+      }
+      default:
+        return result(block.id, `Unknown tool ${block.name}`, true)
     }
+  } catch (err) {
+    return result(block.id, err instanceof Error ? err.message : 'Tool failed', true)
   }
+}
+
+function describeTool(b: Anthropic.Beta.BetaToolUseBlock) {
+  const input = b.input as { symbol?: string; interval?: string }
+  if (b.name === 'get_market_snapshot') return `${input.symbol ?? '?'} ${input.interval ?? ''}`.trim()
+  if (b.name === 'get_bot_status') return 'bot status'
+  if (b.name === 'pause_new_entries') return 'pausing the bot'
+  return b.name
 }
 
 // Runs Leo over a conversation, emitting text and status events as they
@@ -88,6 +145,7 @@ async function runTool(block: Anthropic.Beta.BetaToolUseBlock): Promise<Anthropi
 export async function runLeo(
   history: ChatTurn[],
   emit: (e: LeoEvent) => void,
+  ctx: LeoContext,
   opts: { effort?: 'low' | 'medium' | 'high' } = {}
 ): Promise<string> {
   const now = new Date().toUTCString()
@@ -148,12 +206,9 @@ export async function runLeo(
     if (toolUses.length === 0) break
     if (message.stop_reason === 'max_tokens') throw new Error('Leo ran out of output space mid tool call')
 
-    emit({
-      t: 'status',
-      v: `Reading ${toolUses.map((b) => `${(b.input as { symbol?: string }).symbol ?? '?'} ${(b.input as { interval?: string }).interval ?? ''}`).join(', ')}…`,
-    })
+    emit({ t: 'status', v: `Checking ${toolUses.map(describeTool).join(', ')}…` })
     messages.push({ role: 'assistant', content: message.content })
-    messages.push({ role: 'user', content: await Promise.all(toolUses.map(runTool)) })
+    messages.push({ role: 'user', content: await Promise.all(toolUses.map((b) => runTool(b, ctx))) })
 
     if (reply && !reply.endsWith('\n')) {
       reply += '\n\n'

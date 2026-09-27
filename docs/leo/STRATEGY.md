@@ -65,6 +65,29 @@ Kept separate so it can be switched off independently, because range strategies 
 3. **Paper trading** (Freqtrade dry-run) for at least 4–6 weeks. Live fills must roughly match the backtest.
 4. **Small live** with operator approval on every trade and minimal size, only after 1–3 pass.
 
+## Backtest results (27 Sep 2026)
+
+Binance spot, BTC/USDT + ETH/USDT, 1 Jan 2021 → 27 Sep 2026, 0.1% fees, max 2 positions,
+50% max exposure (`tradable_balance_ratio`), protections on. Buy-and-hold of the pair over
+the same period: **+225%** (at 100% exposure, with a ~75% peak-to-trough fall in 2022).
+
+| Strategy | Trades | Total | CAGR | Profit factor | Max drawdown | Verdict |
+|---|---|---|---|---|---|---|
+| A v1: 4h pullback, exit on 4h close < EMA50 | 240 | −3.6% | −0.6% | 0.85 | 7.2% | No edge |
+| A v2: same entries, exit on daily regime break | 212 | −3.6% | −0.6% | 0.86 | 7.3% | No edge |
+| Daily regime (`LeoDailyRegime`) | 45 | +138% | +16.3% | 3.26 | 41% | Candidate |
+
+What we learned:
+- The **daily regime filter** is what works: it kept Strategy A completely out of 2022 (0 trades).
+- The **4h pullback entry has no edge** after fees: the trailing stop made +17.6%, but initial stops
+  and early exits gave it all back. v1's 4h EMA50 exit lost on 79 of 80 trades; replacing it
+  (v2) only moved those losses to the initial stop, so the problem is the entry, not the exit.
+- The daily regime result rests on only 45 trades over one market cycle, and all of it was in-sample.
+  Treat it as a baseline to beat, not a proven edge. Walk-forward testing is still to do.
+
+Decision: paper-trade **LeoDailyRegime**; keep **LeoTrendPullback** as research until an entry
+change beats the baseline out-of-sample.
+
 ## Phase 2 build (next)
 
 - Freqtrade in dry-run on a small VPS, Strategy A implemented as a `IStrategy` class

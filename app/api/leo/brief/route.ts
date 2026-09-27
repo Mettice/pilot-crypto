@@ -34,6 +34,7 @@ export async function POST() {
     const content = await runLeo(
       [{ role: 'user', content: `${BRIEF_PROMPT}\n\nSnapshots:\n${JSON.stringify(snapshot)}` }],
       emit,
+      { supabase: op.supabase },
       { effort: 'high' }
     )
     if (!content.trim()) return

@@ -15,11 +15,12 @@ const Body = z.object({
 })
 
 export async function POST(req: Request) {
-  if (!(await getOperator())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const op = await getOperator()
+  if (!op) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const parsed = Body.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
   return leoResponse(async (emit) => {
-    await runLeo(parsed.data.messages, emit)
+    await runLeo(parsed.data.messages, emit, { supabase: op.supabase })
   })
 }

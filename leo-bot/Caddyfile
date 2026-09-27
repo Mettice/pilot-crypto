@@ -1,0 +1,10 @@
+{$BOT_DOMAIN} {
+	# Only the REST API is exposed; everything else (including the FreqUI) is refused
+	@api path /api/*
+	handle @api {
+		reverse_proxy freqtrade:8080
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
