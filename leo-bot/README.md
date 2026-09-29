@@ -67,9 +67,12 @@ Every action is logged in Supabase (`leo_bot_actions`) with who did it and why.
 
 ## Maintenance
 
+Freqtrade reads `config.json` and the strategies only at startup, so after pulling changes
+to them always **restart** it (`docker compose up -d` alone won't pick them up).
+
 ```bash
-cd ~/pilot-crypto && git pull && cd leo-bot && docker compose up -d   # update strategy/config
-docker compose restart freqtrade                                        # restart
+cd ~/pilot-crypto && git pull && cd leo-bot && docker compose restart freqtrade   # update strategy/config
+docker compose up -d                                                              # only after docker-compose.yml changes
 docker compose logs --tail 100 freqtrade                                # recent logs
 ```
 
