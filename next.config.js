@@ -4,9 +4,9 @@ const nextConfig = {
     domains: ['api.coingecko.com', 'assets.coingecko.com', 'coin-images.coingecko.com', 'cdn.sanity.io'],
   },
   experimental: {
-    // Ship the welcome-pack files with the Stripe webhook function
+    // Ship the welcome pack and email assets (logo) with the Stripe webhook function
     outputFileTracingIncludes: {
-      '/api/stripe/webhook': ['./emails/welcome-pack/**/*'],
+      '/api/stripe/webhook': ['./emails/welcome-pack/**/*', './emails/assets/**/*'],
     },
   },
 }

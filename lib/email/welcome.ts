@@ -7,6 +7,10 @@ import type { Transporter } from 'nodemailer'
 // Files in this folder are attached to every welcome email (README excluded).
 // next.config.js bundles the folder with the webhook function.
 export const WELCOME_PACK_DIR = path.join(process.cwd(), 'emails', 'welcome-pack')
+// Logo embedded in the email itself (not linked), so it shows without "load images"
+const LOGO_PATH = path.join(process.cwd(), 'emails', 'assets', 'logo.jpg')
+const LOGO_CID = 'pilot-crypto-logo'
+const SITE_URL = 'https://www.pilotcrytor.io'
 const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024 // stay well under Zoho's 20 MB limit
 
 const WHATSAPP_URL = 'https://wa.me/33662361149'
@@ -65,7 +69,10 @@ ${WHATSAPP_URL}
 If you have any questions, just reply to this email.
 
 Welcome aboard,
+
 The Pilot Crypto team
+Guide. Invest. Grow.
+${SITE_URL} · WhatsApp: ${WHATSAPP_URL}
 
 Crypto assets are volatile and you can lose money. Nothing we share is personal financial advice.`
 
@@ -75,9 +82,9 @@ Crypto assets are volatile and you can lose money. Nothing we share is personal 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:24px 12px">
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden">
-        <tr><td style="background:#050816;padding:28px 32px">
-          <p style="margin:0;font-size:22px;font-weight:bold;color:#ffffff">Pilot<span style="color:#00AEEF">Crypto</span></p>
-          <p style="margin:6px 0 0;font-size:13px;color:#F5B400;letter-spacing:1px;text-transform:uppercase">${escape(planName)} membership</p>
+        <tr><td align="center" style="background:#01040D;padding:24px 32px 20px">
+          <img src="cid:${LOGO_CID}" width="170" height="156" alt="Pilot Crypto" style="display:block;border:0;width:170px;height:auto">
+          <p style="margin:10px 0 0;font-size:12px;color:#F5B400;letter-spacing:2px;text-transform:uppercase">${escape(planName)} membership</p>
         </td></tr>
         <tr><td style="padding:32px">
           <p style="margin:0 0 16px;font-size:16px">${escape(greeting)}</p>
@@ -88,7 +95,22 @@ Crypto assets are volatile and you can lose money. Nothing we share is personal 
             <a href="${WHATSAPP_URL}" style="display:inline-block;padding:13px 26px;font-size:15px;font-weight:bold;color:#050816;text-decoration:none">Start onboarding on WhatsApp</a>
           </td></tr></table>
           <p style="margin:0 0 4px;font-size:15px;line-height:1.6">Questions? Just reply to this email.</p>
-          <p style="margin:24px 0 0;font-size:15px">Welcome aboard,<br>The Pilot Crypto team</p>
+          <p style="margin:24px 0 20px;font-size:15px">Welcome aboard,</p>
+          <!-- Signature -->
+          <table role="presentation" cellpadding="0" cellspacing="0" style="border-top:1px solid #eceef2;padding-top:18px">
+            <tr>
+              <td style="padding:18px 16px 0 0;vertical-align:middle">
+                <img src="cid:${LOGO_CID}" width="64" height="59" alt="Pilot Crypto" style="display:block;border:0;border-radius:8px;width:64px;height:auto">
+              </td>
+              <td style="padding-top:18px;vertical-align:middle;font-size:13px;line-height:1.55;color:#6b7280">
+                <strong style="font-size:14px;color:#1a1f2b">The Pilot Crypto team</strong><br>
+                Guide. Invest. Grow.<br>
+                <a href="${SITE_URL}" style="color:#0077c8;text-decoration:none">pilotcrytor.io</a>
+                &nbsp;·&nbsp;
+                <a href="${WHATSAPP_URL}" style="color:#0077c8;text-decoration:none">WhatsApp</a>
+              </td>
+            </tr>
+          </table>
         </td></tr>
         <tr><td style="padding:20px 32px;background:#f8f9fb;border-top:1px solid #eceef2">
           <p style="margin:0;font-size:12px;line-height:1.5;color:#6b7280">Crypto assets are volatile and you can lose money. Nothing we share is personal financial advice.</p>
@@ -126,6 +148,9 @@ export async function sendWelcomeEmail(to: string, opts: { name?: string | null;
     subject,
     text,
     html,
-    attachments,
+    attachments: [
+      { filename: 'pilot-crypto-logo.jpg', path: LOGO_PATH, cid: LOGO_CID, contentDisposition: 'inline' },
+      ...attachments,
+    ],
   })
 }
