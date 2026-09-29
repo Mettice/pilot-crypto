@@ -6,7 +6,7 @@ import Markdown from './Markdown'
 import { readLeoStream } from '@/lib/leo/read-stream'
 import type { StepKind } from '@/lib/leo/agent'
 import { useLeo } from './live/LeoPresence'
-import { speak, stopSpeaking, useSpeechInput } from './live/voice'
+import { speakLeo, stopSpeaking, useSpeechInput } from './live/voice'
 
 const STORAGE_KEY = 'leo-chat-v2'
 
@@ -61,10 +61,29 @@ export default function LeoChat() {
     const content = text.trim()
     if (!content || busy) return
     stopSpeaking()
+    const voiceOn = leo.voiceReplies
     const history: Turn[] = [...turns, { role: 'user', content }]
+    let raw = ''
     let reply = ''
     let steps: Step[] = []
+    let spokeSummary = false
+    let talking = false
+    let streaming = true
     const show = () => setTurns([...history, { role: 'assistant', content: reply, steps: [...steps] }])
+    // While Leo's voice is playing, the orb shows speaking rather than work steps
+    const presence = (s: Parameters<typeof leo.setState>[0]) => {
+      if (!talking) leo.setState(s)
+    }
+    const say = (words: string) => {
+      talking = true
+      speakLeo(words, {
+        onStart: () => leo.setState('speaking'),
+        onEnd: () => {
+          talking = false
+          leo.setState(streaming ? 'thinking' : 'idle')
+        },
+      })
+    }
     show()
     setInput('')
     setBusy(true)
@@ -77,30 +96,39 @@ export default function LeoChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: history.filter((t) => t.content).map(({ role, content }) => ({ role, content })),
+          voice: voiceOn,
         }),
       })
       await readLeoStream(res, (e) => {
         if (e.t === 'status') {
           steps = [...steps.map((s) => ({ ...s, done: true })), { v: e.v, kind: e.kind, done: false }]
-          leo.setState(e.kind)
+          presence(e.kind)
           show()
         } else if (e.t === 'text') {
-          reply += e.v
+          raw += e.v
+          const { display, spoken, closed } = splitSpoken(raw)
+          reply = display
+          // Speak the summary the moment it's complete; the full answer keeps streaming
+          if (voiceOn && closed && spoken && !spokeSummary) {
+            spokeSummary = true
+            say(spoken)
+          }
           if (steps.some((s) => !s.done)) steps = steps.map((s) => ({ ...s, done: true }))
-          leo.setState('thinking')
+          presence('thinking')
           show()
         } else if (e.t === 'error') setError(e.v)
       })
     } catch {
       setError('Connection lost. Try again.')
     } finally {
+      streaming = false
       steps = steps.map((s) => ({ ...s, done: true }))
       if (reply) show()
       else setTurns(history)
       setBusy(false)
-      if (reply && leo.voiceReplies) {
-        speak(reply, { onStart: () => leo.setState('speaking'), onEnd: () => leo.setState('idle') })
-      } else leo.setState('idle')
+      // Leo skipped the summary block: read the first couple of sentences instead
+      if (voiceOn && reply && !spokeSummary) say(firstSentences(reply))
+      else if (!talking) leo.setState('idle')
     }
   }
 
@@ -238,4 +266,19 @@ export default function LeoChat() {
       </form>
     </div>
   )
+}
+
+// Leo opens voice-mode replies with <spoken>…</spoken>: pull it out of the
+// on-screen text (hiding it while it streams in) and hand it to the voice.
+function splitSpoken(raw: string): { display: string; spoken: string | null; closed: boolean } {
+  const trimmed = raw.trimStart()
+  if (trimmed && '<spoken>'.startsWith(trimmed)) return { display: '', spoken: null, closed: false }
+  const m = trimmed.match(/^<spoken>([\s\S]*?)(<\/spoken>|$)/)
+  if (!m) return { display: raw, spoken: null, closed: false }
+  return { display: trimmed.slice(m[0].length).trimStart(), spoken: m[1].trim(), closed: m[2] === '</spoken>' }
+}
+
+function firstSentences(md: string, count = 2) {
+  const plain = md.replace(/```[\s\S]*?```/g, ' ').replace(/[#*_`>|]/g, '').replace(/\s+/g, ' ')
+  return (plain.match(/[^.!?]+[.!?]+/g) ?? [plain]).slice(0, count).join(' ').slice(0, 400)
 }

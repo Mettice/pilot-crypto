@@ -12,6 +12,7 @@ const Body = z.object({
     .min(1)
     .max(60)
     .refine((m) => m[m.length - 1].role === 'user', 'Last message must be from the user'),
+  voice: z.boolean().optional(),
 })
 
 export async function POST(req: Request) {
@@ -21,6 +22,6 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
 
   return leoResponse(async (emit) => {
-    await runLeo(parsed.data.messages, emit, { supabase: op.supabase })
+    await runLeo(parsed.data.messages, emit, { supabase: op.supabase }, { voice: parsed.data.voice })
   })
 }

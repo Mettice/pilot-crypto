@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import type { PresenceState } from './LeoPresence'
+import { voiceLevel } from './voice'
 
 type Look = {
   color: [number, number, number]
@@ -141,10 +142,12 @@ export default function HudCore({ state, size, onActivate, label }: { state: Pre
 
       // Waveform ring while listening/speaking
       if (waveAlpha > 0.02) {
+        // While Leo speaks, the ring follows the real loudness of the audio
+        const boost = stateRef.current === 'speaking' ? 0.25 + voiceLevel.value * 2.4 : 1
         ctx.beginPath()
         for (let i = 0; i <= 180; i++) {
           const a = (i / 180) * Math.PI * 2
-          const amp = (Math.sin(a * 9 + t * 9) * 0.5 + Math.sin(a * 17 - t * 13) * 0.3 + Math.sin(a * 5 + t * 4) * 0.2) * R * 0.045
+          const amp = (Math.sin(a * 9 + t * 9) * 0.5 + Math.sin(a * 17 - t * 13) * 0.3 + Math.sin(a * 5 + t * 4) * 0.2) * R * 0.045 * boost
           const r = R * 0.53 + amp * waveAlpha
           const x = c + Math.cos(a) * r
           const y = c + Math.sin(a) * r

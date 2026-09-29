@@ -115,6 +115,78 @@ export function speak(md: string, hooks: { onStart?: () => void; onEnd?: () => v
   })
 }
 
+// Live loudness of Leo's voice (0..1), read by the HUD core to drive its waveform
+export const voiceLevel = { value: 0 }
+
+let currentAudio: HTMLAudioElement | null = null
+let audioCtx: AudioContext | null = null
+let levelRaf = 0
+
+function trackLevel(audio: HTMLAudioElement) {
+  try {
+    audioCtx ??= new AudioContext()
+    const source = audioCtx.createMediaElementSource(audio)
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 512
+    source.connect(analyser)
+    analyser.connect(audioCtx.destination)
+    const data = new Uint8Array(analyser.fftSize)
+    const tick = () => {
+      analyser.getByteTimeDomainData(data)
+      let sum = 0
+      for (let i = 0; i < data.length; i++) sum += ((data[i] - 128) / 128) ** 2
+      // Smooth and boost the RMS so normal speech fills the range
+      voiceLevel.value = voiceLevel.value * 0.6 + Math.min(1, Math.sqrt(sum / data.length) * 4) * 0.4
+      levelRaf = requestAnimationFrame(tick)
+    }
+    tick()
+  } catch {
+    // Level metering is cosmetic; playback works without it
+  }
+}
+
+// Leo's voice: ElevenLabs via /api/leo/speak, falling back to the browser's
+// built-in voice if the service isn't configured or fails.
+export async function speakLeo(text: string, hooks: { onStart?: () => void; onEnd?: () => void } = {}) {
+  stopSpeaking()
+  const spoken = toSpeech(text)
+  if (!spoken) return
+  try {
+    const res = await fetch('/api/leo/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: spoken.slice(0, 800) }),
+    })
+    if (!res.ok) throw new Error(`speak ${res.status}`)
+    const url = URL.createObjectURL(await res.blob())
+    const audio = new Audio(url)
+    currentAudio = audio
+    trackLevel(audio)
+    const done = () => {
+      cancelAnimationFrame(levelRaf)
+      voiceLevel.value = 0
+      URL.revokeObjectURL(url)
+      if (currentAudio === audio) currentAudio = null
+      hooks.onEnd?.()
+    }
+    audio.onplay = () => hooks.onStart?.()
+    audio.onended = done
+    audio.onerror = done
+    await audioCtx?.resume()
+    await audio.play()
+  } catch {
+    speak(text, hooks)
+  }
+}
+
 export function stopSpeaking() {
-  if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+  if (typeof window === 'undefined') return
+  window.speechSynthesis?.cancel()
+  if (currentAudio) {
+    currentAudio.onended = null
+    currentAudio.pause()
+    currentAudio = null
+  }
+  cancelAnimationFrame(levelRaf)
+  voiceLevel.value = 0
 }
