@@ -1,7 +1,7 @@
 // Server-only client for the Freqtrade REST API on the bot server.
 // Credentials stay on the server (Vercel env); the browser never sees them.
 
-const TIMEOUT_MS = 8000
+const TIMEOUT_MS = 15000
 
 export type BotAction = 'pause' | 'resume' | 'kill'
 
@@ -11,14 +11,19 @@ export function botConfigured() {
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const auth = Buffer.from(`${process.env.LEO_BOT_USERNAME}:${process.env.LEO_BOT_PASSWORD}`).toString('base64')
-  const res = await fetch(`${process.env.LEO_BOT_URL!.replace(/\/$/, '')}/api/v1/${path}`, {
-    ...init,
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', ...init.headers },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  })
-  if (!res.ok) throw new Error(`Bot API ${path}: HTTP ${res.status}`)
-  return res.json() as Promise<T>
+  try {
+    const res = await fetch(`${process.env.LEO_BOT_URL!.replace(/\/$/, '')}/api/v1/${path}`, {
+      ...init,
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json', ...init.headers },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return (await res.json()) as T
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'failed'
+    throw new Error(`Bot API (${path}): ${msg}`)
+  }
 }
 
 type FtConfig = { state: string; dry_run: boolean; strategy: string; timeframe: string; max_open_trades: number; stake_currency: string }
