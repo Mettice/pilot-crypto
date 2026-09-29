@@ -13,16 +13,37 @@ const BLUE = '#00AEEF'
 // sits behind the hero content and has pointer-events disabled.
 const pointer = { x: 0, y: 0 }
 
-// The beam falls from off-screen top-right (SOURCE) toward the viewer at
-// the bottom (END). Coins travel along it, spreading as the beam widens.
-const SOURCE = new THREE.Vector3(5.4, 4.8, -5)
-const END = new THREE.Vector3(1.8, -5.4, 3)
-const DIR = END.clone().sub(SOURCE)
-const DIR_N = DIR.clone().normalize()
-const PERP = new THREE.Vector3(-DIR.y, DIR.x, 0).normalize()
-const BEAM_QUAT = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), DIR_N)
+// The beam falls from off-screen top-right (source) toward the viewer at
+// the bottom (end). Coins travel along it, spreading as the beam widens.
+type Path = {
+  source: THREE.Vector3
+  dir: THREE.Vector3
+  dirN: THREE.Vector3
+  perp: THREE.Vector3
+  quat: THREE.Quaternion
+}
+function makePath(source: [number, number, number], end: [number, number, number]): Path {
+  const src = new THREE.Vector3(...source)
+  const dir = new THREE.Vector3(...end).sub(src)
+  const dirN = dir.clone().normalize()
+  return {
+    source: src,
+    dir,
+    dirN,
+    perp: new THREE.Vector3(-dir.y, dir.x, 0).normalize(),
+    quat: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirN),
+  }
+}
 
-const COIN_COUNT = 26
+// Desktop: a wide diagonal down the right half. Phone (portrait, lite): a
+// steeper fall from just off the top-right corner through the middle, with
+// fewer, smaller coins and less dust so it stays smooth on mobile GPUs.
+const PRESETS = {
+  desktop: { path: makePath([5.4, 4.8, -5], [1.8, -5.4, 3]), coins: 26, lateral: 1.1, size: 1, beam: 4, glow: 9, dust: 1, stars: 1400 },
+  lite: { path: makePath([2.4, 5.4, -5], [0.1, -5.6, 3]), coins: 14, lateral: 0.7, size: 0.8, beam: 2.6, glow: 6, dust: 0.45, stars: 600 },
+}
+type Preset = (typeof PRESETS)['desktop']
+
 const LOOP_SECONDS = 16 // time for one coin to travel the whole beam
 
 // ── Coin geometry: body + raised rims + emblem, merged into one mesh ──────────
@@ -53,23 +74,23 @@ function useCoinGeometry() {
 }
 
 // ── Coin stream: one instanced draw call for all coins ────────────────────────
-function CoinStream() {
+function CoinStream({ preset }: { preset: Preset }) {
   const mesh = useRef<THREE.InstancedMesh>(null)
   const geometry = useCoinGeometry()
 
   const coins = useMemo(
     () =>
-      Array.from({ length: COIN_COUNT }, (_, i) => ({
-        t0: i / COIN_COUNT + Math.random() * 0.02,
-        lateral: (Math.random() * 2 - 1) * 1.1,
+      Array.from({ length: preset.coins }, (_, i) => ({
+        t0: i / preset.coins + Math.random() * 0.02,
+        lateral: (Math.random() * 2 - 1) * preset.lateral,
         depth: (Math.random() * 2 - 1) * 1.2,
-        size: 0.28 + Math.random() * 0.12,
+        size: (0.28 + Math.random() * 0.12) * preset.size,
         phase: Math.random() * Math.PI * 2,
         wobble: 0.4 + Math.random() * 0.5,
         spin: (Math.random() < 0.5 ? -1 : 1) * (0.2 + Math.random() * 0.4),
         push: new THREE.Vector2(),
       })),
-    []
+    [preset]
   )
 
   const tmp = useMemo(
@@ -96,9 +117,9 @@ function CoinStream() {
       const spread = 0.6 + 1.6 * t // beam widens toward the viewer
 
       pos
-        .copy(SOURCE)
-        .addScaledVector(DIR, t)
-        .addScaledVector(PERP, c.lateral * spread)
+        .copy(preset.path.source)
+        .addScaledVector(preset.path.dir, t)
+        .addScaledVector(preset.path.perp, c.lateral * spread)
       pos.z += c.depth * (0.4 + t)
 
       // Coins drift out of the cursor's way
@@ -127,7 +148,7 @@ function CoinStream() {
   })
 
   return (
-    <instancedMesh ref={mesh} args={[geometry, undefined, COIN_COUNT]} frustumCulled={false}>
+    <instancedMesh ref={mesh} args={[geometry, undefined, preset.coins]} frustumCulled={false}>
       <meshStandardMaterial
         color={GOLD}
         metalness={0.9}
@@ -170,8 +191,9 @@ const beamFragment = /* glsl */ `
   }
 `
 
-function Beam() {
-  const length = DIR.length() * 1.15
+function Beam({ preset }: { preset: Preset }) {
+  const { source, dir, dirN } = preset.path
+  const length = dir.length() * 1.15
   const uniforms = useMemo(
     () => ({
       uColor: { value: new THREE.Color(BLUE) },
@@ -184,14 +206,14 @@ function Beam() {
     uniforms.uTime.value = clock.elapsedTime
   })
   // Cone apex sits at SOURCE, opening along the beam direction
-  const center = SOURCE.clone().addScaledVector(DIR_N, length / 2)
+  const center = source.clone().addScaledVector(dirN, length / 2)
   const quat = useMemo(
-    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), DIR_N.clone().negate()),
-    []
+    () => new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirN.clone().negate()),
+    [dirN]
   )
   return (
     <mesh position={center} quaternion={quat} renderOrder={-1}>
-      <coneGeometry args={[4, length, 48, 1, true]} />
+      <coneGeometry args={[preset.beam, length, 48, 1, true]} />
       <shaderMaterial
         vertexShader={beamVertex}
         fragmentShader={beamFragment}
@@ -223,12 +245,12 @@ const glowVertex = /* glsl */ `
   }
 `
 
-function SourceGlow() {
+function SourceGlow({ preset }: { preset: Preset }) {
   const uniforms = useMemo(() => ({ uColor: { value: new THREE.Color('#bff4ff') } }), [])
   return (
-    <Billboard position={SOURCE}>
+    <Billboard position={preset.path.source}>
       <mesh>
-        <planeGeometry args={[9, 9]} />
+        <planeGeometry args={[preset.glow, preset.glow]} />
         <shaderMaterial
           vertexShader={glowVertex}
           fragmentShader={glowFragment}
@@ -242,9 +264,10 @@ function SourceGlow() {
   )
 }
 
-function Scene() {
+function Scene({ preset }: { preset: Preset }) {
   const rig = useRef<THREE.Group>(null)
-  const dustCenter = useMemo(() => SOURCE.clone().addScaledVector(DIR, 0.5), [])
+  const { source, dir, quat } = preset.path
+  const dustCenter = useMemo(() => source.clone().addScaledVector(dir, 0.5), [source, dir])
 
   useFrame(({ camera }, dt) => {
     const g = rig.current
@@ -259,22 +282,24 @@ function Scene() {
 
   return (
     <>
-      <Stars radius={40} depth={30} count={1400} factor={2.6} saturation={0} fade speed={0.4} />
+      <Stars radius={40} depth={30} count={preset.stars} factor={2.6} saturation={0} fade speed={0.4} />
       <group ref={rig}>
-        <Beam />
-        <SourceGlow />
-        <CoinStream />
+        <Beam preset={preset} />
+        <SourceGlow preset={preset} />
+        <CoinStream preset={preset} />
         {/* Dust floating inside the beam */}
-        <group position={dustCenter} quaternion={BEAM_QUAT}>
-          <Sparkles count={70} scale={[3.2, DIR.length(), 2.5]} size={2} speed={0.35} opacity={0.7} color="#bdf3ff" />
-          <Sparkles count={25} scale={[3.2, DIR.length(), 2.5]} size={3} speed={0.25} opacity={0.6} color={GOLD} />
+        <group position={dustCenter} quaternion={quat}>
+          <Sparkles count={Math.round(70 * preset.dust)} scale={[preset.beam * 0.8, dir.length(), 2.5]} size={2} speed={0.35} opacity={0.7} color="#bdf3ff" />
+          <Sparkles count={Math.round(25 * preset.dust)} scale={[preset.beam * 0.8, dir.length(), 2.5]} size={3} speed={0.25} opacity={0.6} color={GOLD} />
         </group>
       </group>
     </>
   )
 }
 
-export default function Hero3D() {
+// lite: phones and small screens (fewer coins, portrait path, lower resolution)
+export default function Hero3D({ lite = false }: { lite?: boolean }) {
+  const preset = lite ? PRESETS.lite : PRESETS.desktop
   const wrapRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(true)
 
@@ -299,13 +324,13 @@ export default function Hero3D() {
     <div ref={wrapRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
       <Canvas
         frameloop={visible ? 'always' : 'never'}
-        dpr={[1, 1.5]}
+        dpr={lite ? 1 : [1, 1.5]}
         camera={{ position: [0, 0, 10], fov: 35 }}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        gl={{ antialias: !lite, alpha: true, powerPreference: lite ? 'default' : 'high-performance' }}
       >
         <ambientLight intensity={0.35} />
         {/* Key light from the beam source (kept warm so gold stays gold), fill from the front-left */}
-        <directionalLight position={SOURCE} color="#fff4dc" intensity={2.2} />
+        <directionalLight position={preset.path.source} color="#fff4dc" intensity={2.2} />
         <directionalLight position={[-6, 2, 8]} color="#ffd27a" intensity={0.7} />
         {/* Local studio lighting for the metal — no HDR download */}
         <Environment resolution={256}>
@@ -314,7 +339,7 @@ export default function Hero3D() {
           <Lightformer form="rect" intensity={1.5} color={GOLD} position={[-5, -2, 2]} scale={[2, 6, 1]} />
           <Lightformer form="rect" intensity={1} position={[0, 0, 8]} scale={[12, 6, 1]} />
         </Environment>
-        <Scene />
+        <Scene preset={preset} />
       </Canvas>
     </div>
   )

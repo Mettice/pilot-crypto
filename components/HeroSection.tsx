@@ -195,9 +195,10 @@ function ParticleField() {
 // Loaded client-side only, after first paint
 const Hero3D = dynamic(() => import('./Hero3D'), { ssr: false })
 
-// 3D on desktop with WebGL and no reduced-motion preference; 2D particles otherwise
-function useCan3D() {
-  const [can3D, setCan3D] = useState(false)
+// 3D everywhere WebGL works and motion is welcome: full on wide screens, a
+// lighter version on phones/tablets; 2D particles otherwise
+function use3DMode(): 'off' | 'full' | 'lite' {
+  const [mode, setMode] = useState<'off' | 'full' | 'lite'>('off')
   useEffect(() => {
     const wide = window.matchMedia('(min-width: 1024px)')
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -205,7 +206,7 @@ function useCan3D() {
     try {
       webgl = !!document.createElement('canvas').getContext('webgl2')
     } catch {}
-    const update = () => setCan3D(webgl && wide.matches && !reduced.matches)
+    const update = () => setMode(!webgl || reduced.matches ? 'off' : wide.matches ? 'full' : 'lite')
     update()
     wide.addEventListener('change', update)
     reduced.addEventListener('change', update)
@@ -214,7 +215,7 @@ function useCan3D() {
       reduced.removeEventListener('change', update)
     }
   }, [])
-  return can3D
+  return mode
 }
 
 // ── Stats bar ────────────────────────────────────────────────────────────────
@@ -230,7 +231,7 @@ function StatsBadge({ icon: Icon, label, value }: { icon: any; label: string; va
 
 // ── Main Hero ────────────────────────────────────────────────────────────────
 export default function HeroSection() {
-  const can3D = useCan3D()
+  const mode3D = use3DMode()
   const btcData = [42100, 43500, 43000, 44800, 44200, 45600, 45100, 46200, 46800, 47500]
   const ethData = [2400, 2520, 2480, 2610, 2580, 2700, 2660, 2750, 2800, 2860]
   const croData = [0.085, 0.091, 0.089, 0.096, 0.094, 0.102, 0.098, 0.108, 0.106, 0.112]
@@ -287,14 +288,14 @@ export default function HeroSection() {
       id="hero"
       className="relative min-h-screen flex items-center overflow-hidden bg-bg bg-hero-mesh bg-grid-pattern"
     >
-      {can3D ? (
+      {mode3D !== 'off' ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.3 }}
           className="absolute inset-0"
         >
-          <Hero3D />
+          <Hero3D lite={mode3D === 'lite'} key={mode3D} />
         </motion.div>
       ) : (
         <ParticleField />
