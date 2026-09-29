@@ -57,6 +57,8 @@ type FtBalance = { total: number; starting_capital: number; stake: string }
 type FtLocks = { lock_count: number; locks: { pair: string; lock_end_time: string; reason: string }[] }
 
 export type BotStatus = {
+  // Endpoints that timed out and are showing their previous answer
+  stale: string[]
   state: string
   dryRun: boolean
   strategy: string
@@ -82,16 +84,37 @@ export type BotStatus = {
   locks: { pair: string; until: string; reason: string }[]
 }
 
+// Last good answer per endpoint. Several endpoints make the bot fetch live
+// prices from Binance, which can occasionally stall; one slow endpoint then
+// falls back to its previous answer instead of failing the whole status.
+const lastGood = new Map<string, unknown>()
+
+async function callOrLast<T>(path: string, stale: string[]): Promise<T> {
+  try {
+    const value = await call<T>(path)
+    lastGood.set(path, value)
+    return value
+  } catch (err) {
+    if (!lastGood.has(path)) throw err
+    console.warn(`${err instanceof Error ? err.message : err}; using last good answer`)
+    stale.push(path)
+    return lastGood.get(path) as T
+  }
+}
+
 export async function getBotStatus(): Promise<BotStatus> {
+  const stale: string[] = []
+  // show_config is a plain read of the bot's state; if it fails the bot really is down
   const [config, open, profit, balance, trades, locks] = await Promise.all([
     call<FtConfig>('show_config'),
-    call<FtOpenTrade[]>('status'),
-    call<FtProfit>('profit'),
-    call<FtBalance>('balance'),
-    call<{ trades: FtClosedTrade[] }>('trades?limit=10&order_by_id=true'),
-    call<FtLocks>('locks'),
+    callOrLast<FtOpenTrade[]>('status', stale),
+    callOrLast<FtProfit>('profit', stale),
+    callOrLast<FtBalance>('balance', stale),
+    callOrLast<{ trades: FtClosedTrade[] }>('trades?limit=10&order_by_id=true', stale),
+    callOrLast<FtLocks>('locks', stale),
   ])
   return {
+    stale,
     state: config.state,
     dryRun: config.dry_run,
     strategy: config.strategy,

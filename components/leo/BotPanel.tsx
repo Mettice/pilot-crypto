@@ -162,6 +162,11 @@ function BotDetails({ status: s }: { status: BotStatus }) {
         </ul>
       )}
 
+      {s.stale.length > 0 && (
+        <p className="font-hud text-[10px] text-[#F5B400] mt-2">
+          Bot is slow to answer ({s.stale.join(', ')}): showing its last update.
+        </p>
+      )}
       {s.locks.length > 0 && (
         <p className="text-[11px] text-[#F5B400] mt-2">
           Protection lock: {s.locks.map((l) => l.pair).join(', ')} until{' '}
