@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { botConfigured, getBotStatus, runBotAction } from './bot'
 import { getSnapshot, INTERVALS, WATCHLIST } from './market'
 
-const MODEL = 'claude-opus-5'
+export const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const MAX_TURNS = 8
 
 // Created on first use so builds don't need ANTHROPIC_API_KEY
@@ -74,6 +74,11 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
 ]
 
 const PauseInput = z.object({ reason: z.string().min(1).max(500) })
+
+// Operator instruction added after the user's turn when spoken replies are on.
+// A mid-conversation system message keeps the cached prefix intact.
+const VOICE_MODE = `Spoken replies are on: the operator hears part of your answer through text-to-speech.
+Start your reply with a <spoken>...</spoken> block: two or three short, conversational sentences (under 60 words) that give the headline answer, written to be heard. No markdown, lists, emoji or URLs inside it. Then write your full answer as usual; it is shown on screen and not read aloud.`
 
 export type StepKind = 'data' | 'market' | 'search' | 'bot' | 'pause'
 
@@ -150,27 +155,40 @@ export async function runLeo(
   history: ChatTurn[],
   emit: (e: LeoEvent) => void,
   ctx: LeoContext,
-  opts: { effort?: 'low' | 'medium' | 'high' } = {}
+  opts: { effort?: 'low' | 'medium' | 'high'; voice?: boolean; model?: string; maxTokens?: number } = {}
 ): Promise<string> {
+  const model = opts.model ?? DEFAULT_MODEL
+  const effort = opts.effort ?? (opts.voice ? 'low' : 'medium')
+  const defaultMaxTokens = opts.voice ? 2048 : effort === 'high' ? 8192 : 4096
+  const max_tokens = opts.maxTokens ?? defaultMaxTokens
+
+  // Cap message history to avoid prompt token bloat on long conversations.
+  // Ensure the history slice starts with a user turn so role alternation is valid.
+  const MAX_HISTORY = 16
+  const sliced = history.length > MAX_HISTORY ? history.slice(-MAX_HISTORY) : history
+  const activeHistory = sliced[0]?.role === 'assistant' ? sliced.slice(1) : sliced
+
   const now = new Date().toUTCString()
-  const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m, i) =>
+  const messages: Anthropic.Beta.BetaMessageParam[] = activeHistory.map((m, i) =>
     // Current time rides on the latest user turn so the system prompt stays cacheable
-    i === history.length - 1 && m.role === 'user'
+    i === activeHistory.length - 1 && m.role === 'user'
       ? { role: 'user', content: `[Current time: ${now}]\n\n${m.content}` }
       : { role: m.role, content: m.content }
   )
+
+  if (opts.voice) messages.push({ role: 'system', content: VOICE_MODE })
 
   let reply = ''
   let jsonRetries = 0
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
     const stream = getClient().beta.messages.stream({
-      model: MODEL,
-      max_tokens: 64000,
+      model,
+      max_tokens,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       thinking: { type: 'adaptive' },
-      output_config: { effort: opts.effort ?? 'medium' },
+      output_config: { effort },
       cache_control: { type: 'ephemeral' },
       system: SYSTEM,
       tools: TOOLS,

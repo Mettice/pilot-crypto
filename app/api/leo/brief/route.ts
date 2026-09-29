@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getOperator } from '@/lib/leo/access'
-import { leoResponse, runLeo } from '@/lib/leo/agent'
+import { DEFAULT_MODEL, leoResponse, runLeo } from '@/lib/leo/agent'
 import { getWatchlistSnapshots, WATCHLIST } from '@/lib/leo/market'
 
 export const dynamic = 'force-dynamic'
@@ -42,7 +42,7 @@ export async function POST() {
     // Written with the operator's session, so RLS enforces the allowlist too
     const { data, error } = await op.supabase
       .from('leo_briefs')
-      .insert({ model: 'claude-opus-5', content, snapshot })
+      .insert({ model: DEFAULT_MODEL, content, snapshot })
       .select('id')
       .single()
     if (error) emit({ t: 'error', v: `Brief not saved: ${error.message}` })
