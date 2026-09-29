@@ -75,6 +75,9 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
 
 const PauseInput = z.object({ reason: z.string().min(1).max(500) })
 
+// Mid-conversation system messages are only accepted by the newest models
+const supportsMidConversationSystem = (model: string) => /^claude-(opus-5|opus-4-8|fable-5|mythos-5)/.test(model)
+
 // Operator instruction added after the user's turn when spoken replies are on.
 // A mid-conversation system message keeps the cached prefix intact.
 const VOICE_MODE = `Spoken replies are on: the operator hears part of your answer through text-to-speech.
@@ -176,7 +179,18 @@ export async function runLeo(
       : { role: m.role, content: m.content }
   )
 
-  if (opts.voice) messages.push({ role: 'system', content: VOICE_MODE })
+  if (opts.voice) {
+    if (supportsMidConversationSystem(model)) {
+      messages.push({ role: 'system', content: VOICE_MODE })
+    } else {
+      // Older models (e.g. Sonnet 4.6) reject role 'system' in messages:
+      // attach the instruction to the latest user turn instead
+      const last = messages[messages.length - 1]
+      if (last?.role === 'user' && typeof last.content === 'string') last.content = `${last.content}
+
+[${VOICE_MODE}]`
+    }
+  }
 
   let reply = ''
   let jsonRetries = 0
