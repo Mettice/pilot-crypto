@@ -53,9 +53,10 @@ export default function LeoChat() {
 
   // Orb shows the microphone while listening
   useEffect(() => {
-    if (voice.listening) leo.setState('listening')
+    // Recording shows as listening; the upload to be transcribed as thinking
+    if (voice.listening) leo.setState(voice.interim ? 'thinking' : 'listening')
     else if (!busy) leo.setState('idle')
-  }, [voice.listening]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [voice.listening, voice.interim]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(text: string) {
     const content = text.trim()

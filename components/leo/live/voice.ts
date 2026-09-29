@@ -2,76 +2,122 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Minimal typings: the Web Speech recognition API isn't in TypeScript's DOM lib
-type RecognitionResult = { isFinal: boolean; 0: { transcript: string } }
-type RecognitionEvent = { resultIndex: number; results: ArrayLike<RecognitionResult> }
-type Recognition = {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  onresult: ((e: RecognitionEvent) => void) | null
-  onend: (() => void) | null
-  onerror: ((e: { error: string }) => void) | null
-  start: () => void
-  stop: () => void
-}
-type RecognitionCtor = new () => Recognition
+const SILENCE_LEVEL = 0.06 // loudness below this counts as silence
+const SILENCE_MS = 1400 // stop this long after you finish speaking
+const MAX_MS = 60_000 // hard cap per recording
+const NO_SPEECH_MS = 8000 // give up if nothing is said at all
 
-function getRecognition(): RecognitionCtor | null {
-  if (typeof window === 'undefined') return null
-  const w = window as unknown as { SpeechRecognition?: RecognitionCtor; webkitSpeechRecognition?: RecognitionCtor }
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+function pickMimeType() {
+  const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+  return options.find((t) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) ?? ''
 }
 
-// Push-to-talk: live transcript while speaking, final text when done
+// Tap to talk: records the microphone, stops by itself after a pause, then
+// transcribes with ElevenLabs (via /api/leo/transcribe) and hands back the text.
+// Replaces the browser's built-in recognition, which in Chromium relies on
+// Google's service and fails in Brave, behind VPNs, etc.
 export function useSpeechInput(onFinal: (text: string) => void) {
   const [supported, setSupported] = useState(false)
   const [listening, setListening] = useState(false)
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const rec = useRef<Recognition | null>(null)
-  const finalText = useRef('')
+  const recorder = useRef<MediaRecorder | null>(null)
+  const cleanup = useRef<(() => void) | null>(null)
   const onFinalRef = useRef(onFinal)
   onFinalRef.current = onFinal
 
-  useEffect(() => setSupported(!!getRecognition()), [])
-
-  const start = useCallback(() => {
-    const Ctor = getRecognition()
-    if (!Ctor || rec.current) return
-    const r = new Ctor()
-    r.lang = navigator.language || 'en-US'
-    r.interimResults = true
-    r.continuous = false
-    finalText.current = ''
-    setInterim('')
-    setError(null)
-    r.onresult = (e) => {
-      let live = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i]
-        if (res.isFinal) finalText.current += res[0].transcript
-        else live += res[0].transcript
-      }
-      setInterim((finalText.current + live).trim())
-    }
-    r.onerror = (e) => {
-      if (e.error !== 'no-speech' && e.error !== 'aborted')
-        setError(e.error === 'not-allowed' ? 'Microphone permission was denied.' : `Voice input error: ${e.error}`)
-    }
-    r.onend = () => {
-      rec.current = null
-      setListening(false)
-      const text = finalText.current.trim()
-      setInterim('')
-      if (text) onFinalRef.current(text)
-    }
-    rec.current = r
-    r.start()
-    setListening(true)
+  useEffect(() => {
+    setSupported(typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia)
+    return () => cleanup.current?.()
   }, [])
 
-  const stop = useCallback(() => rec.current?.stop(), [])
+  const stop = useCallback(() => {
+    if (recorder.current?.state === 'recording') recorder.current.stop()
+  }, [])
+
+  const start = useCallback(async () => {
+    if (recorder.current) return
+    setError(null)
+    setInterim('')
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+    } catch {
+      setError('Microphone permission was denied.')
+      return
+    }
+
+    const mimeType = pickMimeType()
+    const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+    const chunks: Blob[] = []
+    recorder.current = rec
+    setListening(true)
+
+    // Loudness meter: drives the core's waveform and detects the end of speech
+    const ctx = new AudioContext()
+    const analyser = ctx.createAnalyser()
+    analyser.fftSize = 512
+    ctx.createMediaStreamSource(stream).connect(analyser)
+    const data = new Uint8Array(analyser.fftSize)
+    const startedAt = performance.now()
+    let heardSpeech = false
+    let lastLoud = startedAt
+    let raf = 0
+    const meter = () => {
+      analyser.getByteTimeDomainData(data)
+      let sum = 0
+      for (let i = 0; i < data.length; i++) sum += ((data[i] - 128) / 128) ** 2
+      const level = Math.min(1, Math.sqrt(sum / data.length) * 4)
+      voiceLevel.value = voiceLevel.value * 0.6 + level * 0.4
+      const now = performance.now()
+      if (level > SILENCE_LEVEL) {
+        heardSpeech = true
+        lastLoud = now
+      }
+      const silentFor = now - lastLoud
+      if ((heardSpeech && silentFor > SILENCE_MS) || now - startedAt > MAX_MS || (!heardSpeech && now - startedAt > NO_SPEECH_MS)) {
+        stop()
+        return
+      }
+      raf = requestAnimationFrame(meter)
+    }
+    raf = requestAnimationFrame(meter)
+
+    cleanup.current = () => {
+      cancelAnimationFrame(raf)
+      voiceLevel.value = 0
+      stream.getTracks().forEach((t) => t.stop())
+      ctx.close().catch(() => {})
+    }
+
+    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+    rec.onstop = async () => {
+      cleanup.current?.()
+      cleanup.current = null
+      recorder.current = null
+      if (!heardSpeech || !chunks.length) {
+        setListening(false)
+        return
+      }
+      setInterim('Transcribing…')
+      try {
+        const type = rec.mimeType || chunks[0].type || 'audio/webm'
+        const ext = type.includes('mp4') ? 'mp4' : type.includes('ogg') ? 'ogg' : 'webm'
+        const body = new FormData()
+        body.append('audio', new Blob(chunks, { type }), `speech.${ext}`)
+        const res = await fetch('/api/leo/transcribe', { method: 'POST', body })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json.error ?? `Transcription failed (${res.status})`)
+        if (json.text) onFinalRef.current(json.text)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Transcription failed')
+      } finally {
+        setInterim('')
+        setListening(false)
+      }
+    }
+    rec.start()
+  }, [stop])
 
   return { supported, listening, interim, error, start, stop }
 }

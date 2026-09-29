@@ -142,8 +142,8 @@ export default function HudCore({ state, size, onActivate, label }: { state: Pre
 
       // Waveform ring while listening/speaking
       if (waveAlpha > 0.02) {
-        // While Leo speaks, the ring follows the real loudness of the audio
-        const boost = stateRef.current === 'speaking' ? 0.25 + voiceLevel.value * 2.4 : 1
+        // The ring follows real loudness: Leo's voice while speaking, your mic while listening
+        const boost = stateRef.current === 'speaking' || stateRef.current === 'listening' ? 0.25 + voiceLevel.value * 2.4 : 1
         ctx.beginPath()
         for (let i = 0; i <= 180; i++) {
           const a = (i / 180) * Math.PI * 2
