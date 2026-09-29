@@ -80,8 +80,18 @@ export type Snapshot = {
   volumeVsAvg20: number
 }
 
+async function get24hChange(symbol: string): Promise<number | null> {
+  try {
+    const t = await fetch(`${BINANCE}/ticker/24hr?symbol=${symbol}`, { next: { revalidate: 60 } })
+    return t.ok ? round(Number((await t.json()).priceChangePercent)) : null
+  } catch {
+    return null
+  }
+}
+
 export async function getSnapshot(symbol: string, interval: Interval): Promise<Snapshot> {
-  const candles = await getCandles(symbol, interval)
+  // Candles and the 24h ticker are independent: fetch both at once
+  const [candles, last24hPct] = await Promise.all([getCandles(symbol, interval), get24hChange(symbol)])
   if (candles.length < 210) throw new Error(`Not enough history for ${symbol} ${interval}`)
   const closes = candles.map((c) => c.close)
   const last = candles[candles.length - 1]
@@ -97,11 +107,6 @@ export async function getSnapshot(symbol: string, interval: Interval): Promise<S
   const trend =
     last.close > e50 && e50 > e200 ? 'uptrend' : last.close < e50 && e50 < e200 ? 'downtrend' : 'range'
 
-  let last24hPct: number | null = null
-  try {
-    const t = await fetch(`${BINANCE}/ticker/24hr?symbol=${symbol}`, { next: { revalidate: 60 } })
-    if (t.ok) last24hPct = round(Number((await t.json()).priceChangePercent))
-  } catch {}
 
   return {
     symbol,

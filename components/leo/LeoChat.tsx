@@ -21,6 +21,13 @@ const SUGGESTIONS = [
   'What news could move crypto this week?',
 ]
 
+// What Leo says while it fetches (generated once, then replayed from cache)
+const ACK: Partial<Record<StepKind, string>> = {
+  market: 'Checking the market.',
+  search: 'Searching the news.',
+  bot: 'Checking the bot.',
+}
+
 const STEP_ICON: Record<StepKind, string> = {
   data: 'bg-[#00AEEF]',
   market: 'bg-[#00AEEF]',
@@ -75,16 +82,23 @@ export default function LeoChat() {
     const presence = (s: Parameters<typeof leo.setState>[0]) => {
       if (!talking) leo.setState(s)
     }
-    const say = (words: string) => {
+    const say = (words: string, afterCurrent = false) => {
       talking = true
-      speakLeo(words, {
-        onStart: () => leo.setState('speaking'),
-        onEnd: () => {
-          talking = false
-          leo.setState(streaming ? 'thinking' : 'idle')
+      speakLeo(
+        words,
+        {
+          onStart: () => leo.setState('speaking'),
+          onEnd: () => {
+            talking = false
+            leo.setState(streaming ? 'thinking' : 'idle')
+          },
         },
-      })
+        { afterCurrent }
+      )
     }
+    // One short spoken acknowledgement when Leo has to go fetch something,
+    // so a slower answer never starts with silence
+    let acknowledged = false
     show()
     setInput('')
     setBusy(true)
@@ -102,6 +116,10 @@ export default function LeoChat() {
       })
       await readLeoStream(res, (e) => {
         if (e.t === 'status') {
+          if (voiceOn && !acknowledged && !spokeSummary && ACK[e.kind]) {
+            acknowledged = true
+            say(ACK[e.kind]!)
+          }
           steps = [...steps.map((s) => ({ ...s, done: true })), { v: e.v, kind: e.kind, done: false }]
           presence(e.kind)
           show()
@@ -112,7 +130,7 @@ export default function LeoChat() {
           // Speak the summary the moment it's complete; the full answer keeps streaming
           if (voiceOn && closed && spoken && !spokeSummary) {
             spokeSummary = true
-            say(spoken)
+            say(spoken, true)
           }
           if (steps.some((s) => !s.done)) steps = steps.map((s) => ({ ...s, done: true }))
           presence('thinking')
@@ -128,7 +146,7 @@ export default function LeoChat() {
       else setTurns(history)
       setBusy(false)
       // Leo skipped the summary block: read the first couple of sentences instead
-      if (voiceOn && reply && !spokeSummary) say(firstSentences(reply))
+      if (voiceOn && reply && !spokeSummary) say(firstSentences(reply), true)
       else if (!talking) leo.setState('idle')
     }
   }

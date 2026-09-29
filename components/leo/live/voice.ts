@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 const SILENCE_LEVEL = 0.06 // loudness below this counts as silence
-const SILENCE_MS = 1400 // stop this long after you finish speaking
+const SILENCE_MS = 1000 // stop this long after you finish speaking
 const MAX_MS = 60_000 // hard cap per recording
 const NO_SPEECH_MS = 8000 // give up if nothing is said at all
 
@@ -193,25 +193,50 @@ function trackLevel(audio: HTMLAudioElement) {
 
 // Leo's voice: ElevenLabs via /api/leo/speak, falling back to the browser's
 // built-in voice if the service isn't configured or fails.
-export async function speakLeo(text: string, hooks: { onStart?: () => void; onEnd?: () => void } = {}) {
-  stopSpeaking()
+// Short stock phrases ("Checking the market.") are generated once and replayed
+const phraseCache = new Map<string, string>()
+
+function waitForCurrentAudio(maxMs = 4000) {
+  const audio = currentAudio
+  if (!audio || audio.paused || audio.ended) return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const finish = () => resolve()
+    audio.addEventListener('ended', finish, { once: true })
+    audio.addEventListener('pause', finish, { once: true })
+    setTimeout(finish, maxMs)
+  })
+}
+
+export async function speakLeo(
+  text: string,
+  hooks: { onStart?: () => void; onEnd?: () => void } = {},
+  opts: { afterCurrent?: boolean } = {}
+) {
   const spoken = toSpeech(text)
   if (!spoken) return
+  const cacheable = spoken.length <= 60
   try {
-    const res = await fetch('/api/leo/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: spoken.slice(0, 800) }),
-    })
-    if (!res.ok) throw new Error(`speak ${res.status}`)
-    const url = URL.createObjectURL(await res.blob())
+    let url = cacheable ? phraseCache.get(spoken) : undefined
+    if (!url) {
+      const res = await fetch('/api/leo/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: spoken.slice(0, 800) }),
+      })
+      if (!res.ok) throw new Error(`speak ${res.status}`)
+      url = URL.createObjectURL(await res.blob())
+      if (cacheable) phraseCache.set(spoken, url)
+    }
+    // Let a short acknowledgement finish instead of cutting it off
+    if (opts.afterCurrent) await waitForCurrentAudio()
+    stopSpeaking()
     const audio = new Audio(url)
     currentAudio = audio
     trackLevel(audio)
     const done = () => {
       cancelAnimationFrame(levelRaf)
       voiceLevel.value = 0
-      URL.revokeObjectURL(url)
+      if (!cacheable) URL.revokeObjectURL(url!)
       if (currentAudio === audio) currentAudio = null
       hooks.onEnd?.()
     }

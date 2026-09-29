@@ -75,12 +75,69 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
 
 const PauseInput = z.object({ reason: z.string().min(1).max(500) })
 
+// Voice turns get live data up front so Leo can answer in one pass instead of
+// stopping to call tools (each tool round trip adds several seconds). Anything
+// that takes too long is simply left out; Leo can still use the tools.
+const BRIEFING_TIMEOUT_MS = 2500
+
+const withTimeout = <T,>(p: Promise<T>) =>
+  Promise.race([p, new Promise<null>((resolve) => setTimeout(() => resolve(null), BRIEFING_TIMEOUT_MS))]).catch(() => null)
+
+// Coins a spoken question is about, so only their data is fetched
+const COIN_WORDS: [RegExp, string][] = [
+  [/\b(btc|bitcoin)\b/i, 'BTCUSDT'],
+  [/\b(eth|ether|ethereum)\b/i, 'ETHUSDT'],
+  [/\b(sol|solana)\b/i, 'SOLUSDT'],
+  [/\b(bnb|binance coin)\b/i, 'BNBUSDT'],
+  [/\b(xrp|ripple)\b/i, 'XRPUSDT'],
+  [/\b(tao|bittensor)\b/i, 'TAOUSDT'],
+]
+const BOT_WORDS = /\b(bot|trade|trades|trading|position|positions|p&l|profit|loss|paper|freqtrade|strategy)\b/i
+
+export async function voiceBriefing(question: string): Promise<string> {
+  const named = COIN_WORDS.filter(([re]) => re.test(question)).map(([, symbol]) => symbol)
+  const symbols = named.length ? named : ['BTCUSDT', 'ETHUSDT'] // general questions: the two majors
+  const pairs = symbols.flatMap((symbol) => (['4h', '1d'] as const).map((interval) => ({ symbol, interval })))
+  const [snaps, bot] = await Promise.all([
+    Promise.all(pairs.map(({ symbol, interval }) => withTimeout(getSnapshot(symbol, interval)))),
+    botConfigured() && BOT_WORDS.test(question) ? withTimeout(getBotStatus()) : Promise.resolve(null),
+  ])
+  // Compact rows keep the extra input small (~1-2k tokens)
+  const market = snaps.flatMap((s) =>
+    s
+      ? [
+          {
+            pair: `${s.symbol} ${s.interval}`,
+            price: s.price,
+            chg24h: s.change.last24hPct,
+            trend: s.trend,
+            rsi: s.rsi14,
+            atrPct: s.atrPctOfPrice,
+            vsEma200Pct: s.priceVsEma200Pct,
+            ema50: s.ema.ema50,
+            ema200: s.ema.ema200,
+            range50: [s.range.low, s.range.high],
+          },
+        ]
+      : []
+  )
+  const parts = [`Market snapshots: ${JSON.stringify(market)}`]
+  if (bot)
+    parts.push(
+      `Bot status: ${JSON.stringify({ state: bot.state, dryRun: bot.dryRun, strategy: bot.strategy, profit: bot.profit, openTrades: bot.openTrades, locks: bot.locks })}`
+    )
+  const header =
+    "[Live data fetched just now. Use it directly and don't call get_market_snapshot or get_bot_status for anything it already covers.]"
+  return [header, ...parts].join('\n')
+}
+
 // Mid-conversation system messages are only accepted by the newest models
 const supportsMidConversationSystem = (model: string) => /^claude-(opus-5|opus-4-8|fable-5|mythos-5)/.test(model)
 
 // Operator instruction added after the user's turn when spoken replies are on.
 // A mid-conversation system message keeps the cached prefix intact.
 const VOICE_MODE = `Spoken replies are on: the operator hears part of your answer through text-to-speech.
+Speed matters in voice mode: answer from the live data provided when you can, and only use tools for what it doesn't cover.
 Start your reply with a <spoken>...</spoken> block: two or three short, conversational sentences (under 60 words) that give the headline answer, written to be heard. No markdown, lists, emoji or URLs inside it. Then write your full answer as usual; it is shown on screen and not read aloud.`
 
 export type StepKind = 'data' | 'market' | 'search' | 'bot' | 'pause'
@@ -180,6 +237,8 @@ export async function runLeo(
   )
 
   if (opts.voice) {
+    const last = messages[messages.length - 1]
+    if (last?.role === 'user' && typeof last.content === 'string') last.content = [await voiceBriefing(last.content), last.content].join('\n\n')
     if (supportsMidConversationSystem(model)) {
       messages.push({ role: 'system', content: VOICE_MODE })
     } else {
@@ -201,7 +260,9 @@ export async function runLeo(
       max_tokens,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
-      thinking: { type: 'adaptive' },
+      // Spoken summaries don't need extended thinking, and skipping it saves
+      // seconds per round. On Sonnet/Haiku, omitting the parameter turns it off.
+      ...(opts.voice && /sonnet|haiku/.test(model) ? {} : { thinking: { type: 'adaptive' as const } }),
       output_config: { effort },
       cache_control: { type: 'ephemeral' },
       system: SYSTEM,
