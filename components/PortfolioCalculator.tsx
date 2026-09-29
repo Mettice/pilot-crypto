@@ -99,7 +99,7 @@ function CountUp({ value, prefix = '€' }: { value: number; prefix?: string }) 
       transition={{ duration: 0.3 }}
       className="font-heading font-bold text-3xl text-white"
     >
-      {prefix}{value.toLocaleString('en-EU')}
+      {prefix}{value.toLocaleString('en-IE')}
     </motion.span>
   )
 }
@@ -159,7 +159,7 @@ export default function PortfolioCalculator() {
               <div>
                 <div className="flex justify-between mb-2">
                   <label className="text-sm font-semibold text-white">Monthly Investment</label>
-                  <span className="text-sm font-bold text-[#00AEEF]">€{monthly.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-[#00AEEF]">€{monthly.toLocaleString('en-IE')}</span>
                 </div>
                 <input
                   type="range" min={50} max={5000} step={50}

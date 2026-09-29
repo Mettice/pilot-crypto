@@ -10,7 +10,8 @@ import HudPanel from './HudPanel'
 type Brief = { id: string; created_at: string }
 type FeedItem = { id: string; at: string; icon: typeof Radio; color: string; title: string; detail?: string }
 
-function ago(iso: string, now: number) {
+function ago(iso: string, now: number | null) {
+  if (now === null) return ''
   const s = Math.max(0, (now - new Date(iso).getTime()) / 1000)
   if (s < 60) return 'just now'
   if (s < 3600) return `${Math.floor(s / 60)}m ago`
@@ -24,9 +25,11 @@ const utc = (s: string) => (s.includes('T') || s.endsWith('Z') ? s : `${s.replac
 export default function EventFeed({ briefs }: { briefs: Brief[] }) {
   const { data, refresh } = useBot()
   const router = useRouter()
-  const [now, setNow] = useState(() => Date.now())
+  // Relative times start after mount: the server's clock would differ from the browser's
+  const [now, setNow] = useState<number | null>(null)
 
   useEffect(() => {
+    setNow(Date.now())
     const id = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(id)
   }, [])

@@ -16,6 +16,9 @@ export default function BriefPanel({ briefs }: { briefs: Brief[] }) {
   const [steps, setSteps] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState(0)
+  // Dates use the viewer's time zone, which the server doesn't know: render after mount
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const busy = draft !== null
 
   async function generate() {
@@ -65,7 +68,7 @@ export default function BriefPanel({ briefs }: { briefs: Brief[] }) {
           >
             {briefs.map((b, i) => (
               <option key={b.id} value={i}>
-                {new Date(b.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}
+                {mounted ? new Date(b.created_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : `Brief ${briefs.length - i}`}
               </option>
             ))}
           </select>
