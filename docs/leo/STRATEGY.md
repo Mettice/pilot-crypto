@@ -88,6 +88,20 @@ What we learned:
 Decision: paper-trade **LeoDailyRegime**; keep **LeoTrendPullback** as research until an entry
 change beats the baseline out-of-sample.
 
+### XRP and TAO (29 Sep 2026)
+
+Same `LeoDailyRegime` rules, each pair alone, 0.1% fees.
+
+| Pair | Period | Trades (wins) | Total | CAGR | Max drawdown | Buy and hold |
+|---|---|---|---|---|---|---|
+| XRP/USDT | Jan 2021 → Sep 2026 | 31 (5) | +11.5% | +1.9% | 50% | +530% |
+| TAO/USDT | Nov 2024 → Sep 2026 | 17 (1) | −26.2% | −14.9% | 34% | −39% |
+
+The daily trend filter gets whipsawed on both: XRP lost 18 of 20 trades in 2023–2024 and made
+nearly all its profit on one +172% trade in 2025; TAO has under two years of history and one win
+in 17. Decision: **monitor both on the dashboard, don't add them to the bot**. Trading them would
+need its own strategy research.
+
 ## Phase 2 build (next)
 
 - Freqtrade in dry-run on a small VPS, Strategy A implemented as a `IStrategy` class

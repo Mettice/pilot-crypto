@@ -23,7 +23,7 @@ export default function MarketRadar() {
   return (
     <HudPanel index="04" title="Momentum radar" icon={Radar}>
       <div className="flex flex-col items-center py-3">
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="24 hour momentum radar">
+        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} overflow="visible" role="img" aria-label="24 hour momentum radar">
           <defs>
             <linearGradient id="leo-sweep" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0" stopColor="rgba(94,234,255,0.28)" />
@@ -51,12 +51,15 @@ export default function MarketRadar() {
             const tick = ticks[s]
             const move = Math.min(Math.abs(tick?.change24hPct ?? 0), scale)
             const r = INNER + (move / scale) * (EDGE - INNER - 6)
-            const angle = -Math.PI / 4 + (i * Math.PI) / 2 // NE, SE, SW, NW
+            // Coins spread evenly around the dial, first one at the top
+            const angle = -Math.PI / 2 + (i * 2 * Math.PI) / LIVE_SYMBOLS.length
             const x = C + Math.cos(angle) * r
             const y = C + Math.sin(angle) * r
             // Label sits outward from the blip so neighbours never collide
-            const lx = C + Math.cos(angle) * (r + 16)
-            const ly = C + Math.sin(angle) * (r + 16) + 3
+            const lr = Math.min(r + 16, EDGE - 6)
+            const lx = C + Math.cos(angle) * lr
+            const ly = C + Math.sin(angle) * lr + 3
+            const anchor = Math.abs(Math.cos(angle)) < 0.3 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end'
             const up = (tick?.change24hPct ?? 0) >= 0
             const color = up ? '#34d399' : '#f87171'
             return (
@@ -67,7 +70,7 @@ export default function MarketRadar() {
                 <text
                   x={lx}
                   y={ly}
-                  textAnchor={Math.cos(angle) > 0 ? 'start' : 'end'}
+                  textAnchor={anchor}
                   fontSize="9"
                   fill="#9fdcf5"
                   style={{ fontFamily: 'var(--font-hud), monospace' }}

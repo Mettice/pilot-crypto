@@ -6,7 +6,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 export const BINANCE_REST = 'https://data-api.binance.vision/api/v3'
 export const BINANCE_WS = 'wss://data-stream.binance.vision/stream'
 
-export const LIVE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'] as const
+export const LIVE_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'TAOUSDT'] as const
 export type LiveSymbol = (typeof LIVE_SYMBOLS)[number]
 
 export type Tick = {

@@ -3,7 +3,7 @@
 // api.binance.com it isn't geo-blocked from US-hosted serverless regions.
 const BINANCE = 'https://data-api.binance.vision/api/v3'
 
-export const WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT'] as const
+export const WATCHLIST = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'TAOUSDT'] as const
 export const INTERVALS = ['15m', '1h', '4h', '1d', '1w'] as const
 export type Interval = (typeof INTERVALS)[number]
 
