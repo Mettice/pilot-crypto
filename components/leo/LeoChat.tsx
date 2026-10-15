@@ -15,11 +15,13 @@ type Step = { v: string; kind: StepKind; done: boolean }
 type Turn = { role: 'user' | 'assistant'; content: string; steps?: Step[] }
 
 const SUGGESTIONS = [
-  'What is the market regime on BTC right now, 4h and daily?',
-  'How is the bot doing, and why is it in or out of the market?',
-  'Compare ETH and SOL momentum. Which is stronger and why?',
-  'What news could move crypto this week?',
+  "How's Bitcoin doing today?",
+  'What is a stablecoin, in simple terms?',
+  'Any big crypto news today?',
+  'How is the bot doing?',
 ]
+
+const MORE_DETAIL = 'Go deeper on that, with the details.'
 
 // What Leo says while it fetches (generated once, then replayed from cache)
 const ACK: Partial<Record<StepKind, string>> = {
@@ -126,7 +128,8 @@ export default function LeoChat() {
         } else if (e.t === 'text') {
           raw += e.v
           const { display, spoken, closed } = splitSpoken(raw)
-          reply = display
+          // A short answer may be only the spoken part: show that on screen too
+          reply = display || (closed && spoken ? spoken : '')
           // Speak the summary the moment it's complete; the full answer keeps streaming
           if (voiceOn && closed && spoken && !spokeSummary) {
             spokeSummary = true
@@ -165,8 +168,8 @@ export default function LeoChat() {
         {turns.length === 0 && (
           <div className="min-h-full flex flex-col justify-center gap-4">
             <p className="text-muted text-sm">
-              Leo reads live Binance data, searches the news and watches your paper-trading bot. It can pause the bot when
-              you ask, but never trades. Type, tap the core to talk, or hit <kbd className="px-1 rounded bg-white/10 text-white/80 text-xs">⌘K</kbd>.
+              Ask Leo anything, from quick questions to full market analysis. It keeps answers short unless you ask for
+              more, and checks live prices, news or the bot only when you need them. Type, tap the core to talk, or hit <kbd className="px-1 rounded bg-white/10 text-white/80 text-xs">⌘K</kbd>.
             </p>
             <div className="grid gap-2">
               {SUGGESTIONS.map((s) => (
@@ -215,6 +218,15 @@ export default function LeoChat() {
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Thinking…
                 </p>
               ) : null}
+              {/* Answers are short by default; one tap asks for the full version */}
+              {!busy && i === turns.length - 1 && t.content && turns[i - 1]?.content !== MORE_DETAIL && (
+                <button
+                  onClick={() => send(MORE_DETAIL)}
+                  className="mt-2 font-hud text-[10px] uppercase tracking-wider text-[#9fdcf5]/70 hover:text-white border border-[#00AEEF]/20 hover:border-[#00AEEF]/50 rounded px-2 py-1 transition-colors"
+                >
+                  More detail
+                </button>
+              )}
             </div>
           )
         )}

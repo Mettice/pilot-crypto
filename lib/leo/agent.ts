@@ -13,13 +13,18 @@ const getClient = () => (client ??= new Anthropic())
 
 // Kept byte-stable so it caches across requests; anything per-request
 // (dates, prices) goes into messages, never here.
-const SYSTEM = `You are Leo, the private market analyst for the two operators of Pilot Crypto, a crypto mentorship business. Only these operators can talk to you.
+const SYSTEM = `You are Leo, the private assistant for the two operators of Pilot Crypto, a crypto mentorship business. Only these operators can talk to you.
 
-What you do:
-- Analyse crypto markets using the get_market_snapshot tool (live Binance data with computed indicators) and web search for news, macro events and on-chain headlines.
-- Explain what the data shows: trend regime, momentum, volatility, key levels, and what would change the picture.
-- Help the operators think through trade ideas, strategy rules and risk.
-- Report on the operators' trading bot with get_bot_status: a Freqtrade bot running in paper-trading (dry-run) mode with fake money on Binance spot, strategy LeoDailyRegime (hold BTC/ETH while the daily close is above EMA200 and EMA50 is above EMA200; exit when the daily close falls below EMA200). Explain its positions, P&L and why it is in or out of the market.
+How to talk:
+- This is a normal conversation. Answer the question that was asked, directly, in a few sentences. Most replies are 1-4 sentences; no headings or bullet lists unless they genuinely help.
+- Casual messages and general questions (crypto concepts, definitions, how something works, business or teaching ideas) get a plain conversational answer from your own knowledge, with no tools.
+- Go long and structured (short headings, bullet points, levels, invalidation conditions) only when the operator asks for analysis, a breakdown, a deep dive, or more detail.
+- If a fuller answer would help, give the short answer and offer to go deeper rather than writing it all.
+
+What you can do when it's needed:
+- get_market_snapshot: live Binance data with indicators. Use it only when the question needs current prices, levels or trend data.
+- Web search: only for news, recent events, or facts you can't know without looking them up.
+- get_bot_status: only when asked about the trading bot. It's a Freqtrade bot paper-trading (dry-run, fake money) on Binance spot with strategy LeoDailyRegime (hold BTC/ETH while the daily close is above EMA200 and EMA50 is above EMA200; exit when the daily close falls below EMA200). Don't bring the bot up unless asked.
 
 Hard limits:
 - You cannot open, close or size trades, and you cannot resume or stop the bot. Those are operator-only dashboard controls. If asked, say so plainly.
@@ -28,7 +33,7 @@ Hard limits:
 - Separate facts (tool data, cited news) from your interpretation, and give the conditions that would invalidate a view.
 - Express uncertainty honestly. No guaranteed outcomes, no hype.
 
-Style: concise, structured, plain language. Use short headings and bullet points for analysis. Quote prices with the asset's normal precision.`
+Style: friendly, plain language, short. Quote prices with the asset's normal precision.`
 
 const SnapshotInput = z.object({
   symbol: z.string().regex(/^[A-Z0-9]{2,15}USDT$/),
@@ -93,14 +98,18 @@ const COIN_WORDS: [RegExp, string][] = [
   [/\b(tao|bittensor)\b/i, 'TAOUSDT'],
 ]
 const BOT_WORDS = /\b(bot|trade|trades|trading|position|positions|p&l|profit|loss|paper|freqtrade|strategy)\b/i
+const MARKET_WORDS = /\b(market|markets|price|prices|chart|trend|bull|bullish|bear|bearish|rally|dump|pump|crash|crypto today)\b/i
 
 export async function voiceBriefing(question: string): Promise<string> {
   const named = COIN_WORDS.filter(([re]) => re.test(question)).map(([, symbol]) => symbol)
-  const symbols = named.length ? named : ['BTCUSDT', 'ETHUSDT'] // general questions: the two majors
+  // General market questions get the two majors; anything else needs no market data
+  const symbols = named.length ? named : MARKET_WORDS.test(question) ? ['BTCUSDT', 'ETHUSDT'] : []
+  const wantsBot = botConfigured() && BOT_WORDS.test(question)
+  if (!symbols.length && !wantsBot) return ''
   const pairs = symbols.flatMap((symbol) => (['4h', '1d'] as const).map((interval) => ({ symbol, interval })))
   const [snaps, bot] = await Promise.all([
     Promise.all(pairs.map(({ symbol, interval }) => withTimeout(getSnapshot(symbol, interval)))),
-    botConfigured() && BOT_WORDS.test(question) ? withTimeout(getBotStatus()) : Promise.resolve(null),
+    wantsBot ? withTimeout(getBotStatus()) : Promise.resolve(null),
   ])
   // Compact rows keep the extra input small (~1-2k tokens)
   const market = snaps.flatMap((s) =>
@@ -121,7 +130,7 @@ export async function voiceBriefing(question: string): Promise<string> {
         ]
       : []
   )
-  const parts = [`Market snapshots: ${JSON.stringify(market)}`]
+  const parts = market.length ? [`Market snapshots: ${JSON.stringify(market)}`] : []
   if (bot)
     parts.push(
       `Bot status: ${JSON.stringify({ state: bot.state, dryRun: bot.dryRun, strategy: bot.strategy, profit: bot.profit, openTrades: bot.openTrades, locks: bot.locks })}`
@@ -137,8 +146,9 @@ const supportsMidConversationSystem = (model: string) => /^claude-(opus-5|opus-4
 // Operator instruction added after the user's turn when spoken replies are on.
 // A mid-conversation system message keeps the cached prefix intact.
 const VOICE_MODE = `Spoken replies are on: the operator hears part of your answer through text-to-speech.
-Speed matters in voice mode: answer from the live data provided when you can, and only use tools for what it doesn't cover.
-Start your reply with a <spoken>...</spoken> block: two or three short, conversational sentences (under 60 words) that give the headline answer, written to be heard. No markdown, lists, emoji or URLs inside it. Then write your full answer as usual; it is shown on screen and not read aloud.`
+Speed matters in voice mode: answer from any live data provided when you can, and only use tools for what it doesn't cover.
+Start your reply with a <spoken>...</spoken> block: one to three short, conversational sentences (under 60 words), written to be heard. No markdown, lists, emoji or URLs inside it.
+If that already answers the question, stop there and write nothing after it. Only add text after the block when there is genuinely more to show on screen (figures, levels, a breakdown that was asked for).`
 
 export type StepKind = 'data' | 'market' | 'search' | 'bot' | 'pause'
 
@@ -238,7 +248,10 @@ export async function runLeo(
 
   if (opts.voice) {
     const last = messages[messages.length - 1]
-    if (last?.role === 'user' && typeof last.content === 'string') last.content = [await voiceBriefing(last.content), last.content].join('\n\n')
+    if (last?.role === 'user' && typeof last.content === 'string') {
+      const briefing = await voiceBriefing(last.content)
+      if (briefing) last.content = [briefing, last.content].join('\n\n')
+    }
     if (supportsMidConversationSystem(model)) {
       messages.push({ role: 'system', content: VOICE_MODE })
     } else {
