@@ -15,6 +15,7 @@ import FAQSection from '@/components/FAQSection'
 import FinalCTA from '@/components/FinalCTA'
 import Footer from '@/components/Footer'
 import FloatingWhatsApp from '@/components/FloatingWhatsApp'
+import LeoChatLauncher from '@/components/leo-public/LeoChatLauncher'
 
 export default function Home() {
   return (
@@ -35,6 +36,7 @@ export default function Home() {
       <FinalCTA />
       <Footer />
       <FloatingWhatsApp />
+      <LeoChatLauncher />
     </main>
   )
 }

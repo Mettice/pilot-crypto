@@ -239,3 +239,9 @@ input[type='range']::-moz-range-thumb {
 @media (prefers-reduced-motion: reduce) {
   .hud-sweep { animation: none; }
 }
+
+/* Gentle entrance for small popovers (e.g. the "Ask Leo" teaser) */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

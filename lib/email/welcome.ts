@@ -125,7 +125,7 @@ Crypto assets are volatile and you can lose money. Nothing we share is personal 
 }
 
 let transporter: Transporter | null = null
-function getTransporter() {
+export function getTransporter() {
   // Zoho Mail EU: smtp.zoho.eu, port 465 (SSL), app-specific password
   transporter ??= nodemailer.createTransport({
     host: process.env.SMTP_HOST ?? 'smtp.zoho.eu',

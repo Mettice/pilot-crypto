@@ -14,6 +14,7 @@ import MarketRadar from './MarketRadar'
 import PriceReadout from './PriceReadout'
 import LiveChart from './LiveChart'
 import EventFeed from './EventFeed'
+import LeadsPanel from './LeadsPanel'
 import CommandPalette from './CommandPalette'
 import type { Regime } from './TickerStrip'
 import BotPanel from '../BotPanel'
@@ -99,6 +100,7 @@ function Hud({ email, regimes, briefs }: Props) {
           <MarketFeed regimes={regimes} />
           <BotPanel />
           <EventFeed briefs={briefs} />
+          <LeadsPanel />
         </div>
 
         {/* Center: the core and the conversation */}
