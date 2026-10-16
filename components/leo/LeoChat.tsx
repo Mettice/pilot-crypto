@@ -45,6 +45,8 @@ export default function LeoChat() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  // State, not a ref: saving must wait for the render that has the loaded turns
+  const [loaded, setLoaded] = useState(false)
   const voice = useSpeechInput((text) => send(text))
 
   useEffect(() => {
@@ -52,13 +54,15 @@ export default function LeoChat() {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) setTurns(JSON.parse(saved))
     } catch {}
+    setLoaded(true)
   }, [])
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(turns))
+      // Saving before the stored conversation loads would overwrite it with []
+      if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(turns))
     } catch {}
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
-  }, [turns])
+  }, [turns, loaded])
 
   // Orb shows the microphone while listening
   useEffect(() => {
