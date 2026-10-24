@@ -245,3 +245,30 @@ input[type='range']::-moz-range-thumb {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Ask Leo chat: sheet slides up on phones, card pops in on desktop */
+@keyframes leoSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes leoCardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes leoPop {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes leoFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.leo-sheet { animation: leoSheetUp 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+@media (min-width: 640px) {
+  .leo-sheet { animation: leoCardIn 0.28s cubic-bezier(0.22, 1, 0.36, 1); transform-origin: bottom left; }
+}
+.leo-pop { animation: leoPop 0.25s ease-out; }
+.leo-fade { animation: leoFade 0.25s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .leo-sheet, .leo-pop, .leo-fade { animation: none; }
+}

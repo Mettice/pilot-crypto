@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Sparkles } from 'lucide-react'
 
@@ -28,10 +28,12 @@ export default function LeoChatLauncher() {
     } catch {}
   }
 
-  if (open) return <LeoChatPanel onClose={() => setOpen(false)} />
+  const close = useCallback(() => setOpen(false), [])
+
+  if (open) return <LeoChatPanel onClose={close} />
 
   return (
-    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-3">
+    <div className="fixed bottom-5 left-4 sm:bottom-6 sm:left-6 z-50 flex flex-col items-start gap-3">
       {teaser && (
         <button
           onClick={openChat}
@@ -45,7 +47,7 @@ export default function LeoChatLauncher() {
       <button
         onClick={openChat}
         aria-label="Chat with Leo, our AI guide"
-        className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00AEEF] to-[#0077c8] pl-3 pr-4 py-3 font-semibold text-white shadow-[0_0_24px_rgba(0,174,239,0.45)] hover:shadow-[0_0_36px_rgba(0,174,239,0.65)] transition-shadow"
+        className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-[#00AEEF] to-[#0077c8] pl-2.5 pr-3.5 py-2.5 sm:pl-3 sm:pr-4 sm:py-3 font-semibold text-white shadow-[0_0_24px_rgba(0,174,239,0.45)] hover:shadow-[0_0_36px_rgba(0,174,239,0.65)] transition-shadow"
       >
         <span className="relative flex h-7 w-7 items-center justify-center rounded-full bg-white/15">
           <Sparkles className="w-4 h-4" />
