@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowUp, Check, Loader2, Mic, Square, Volume2, VolumeX } from 'lucide-react'
+import { ArrowUp, Check, Loader2, Mic, RotateCcw, Square, Volume2, VolumeX } from 'lucide-react'
 import Markdown from './Markdown'
 import { readLeoStream } from '@/lib/leo/read-stream'
 import type { StepKind } from '@/lib/leo/agent'
@@ -44,6 +44,7 @@ export default function LeoChat() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
   // State, not a ref: saving must wait for the render that has the loaded turns
   const [loaded, setLoaded] = useState(false)
@@ -164,10 +165,60 @@ export default function LeoChat() {
     leo.register('toggleVoice', () => (voice.listening ? voice.stop() : voice.start()))
   })
 
+  function newChat() {
+    if (turns.length && !confirmClear) {
+      setConfirmClear(true)
+      return
+    }
+    setConfirmClear(false)
+    stopSpeaking()
+    setTurns([])
+    setInput('')
+    setError(null)
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {}
+  }
+
   const draft = voice.listening ? voice.interim : input
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {turns.length > 0 && (
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-white/[0.06]">
+          {confirmClear ? (
+            <>
+              <p className="text-[11px] text-white/60">Clear this conversation?</p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setConfirmClear(false)}
+                  className="rounded px-2 py-1 font-hud text-[10px] uppercase tracking-wider text-muted hover:text-white hover:bg-white/[0.08] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={newChat}
+                  className="rounded bg-[#00AEEF] px-2 py-1 font-hud text-[10px] uppercase tracking-wider text-[#050816] hover:bg-[#33c3ff] transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span />
+              <button
+                onClick={newChat}
+                aria-label="Start a new chat"
+                title="New chat"
+                className="flex items-center gap-1.5 rounded px-2 py-1 font-hud text-[10px] uppercase tracking-wider text-muted hover:text-white hover:bg-white/[0.08] transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" /> New chat
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div ref={scroller} className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
         {turns.length === 0 && (
           <div className="min-h-full flex flex-col justify-center gap-4">

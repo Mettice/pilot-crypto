@@ -4,8 +4,8 @@ import { getOperator } from '@/lib/leo/access'
 
 export const dynamic = 'force-dynamic'
 
-// ElevenLabs' stock "George" voice unless ELEVENLABS_VOICE_ID picks another
-const DEFAULT_VOICE_ID = 'JBFqnCBsd6RMkjVDRZzb'
+// ElevenLabs' stock "Rachel" voice unless ELEVENLABS_VOICE_ID picks another
+const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'
 // Flash v2.5: lowest latency and about half the credits of the top model
 const MODEL_ID = process.env.ELEVENLABS_MODEL_ID ?? 'eleven_flash_v2_5'
 
